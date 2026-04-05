@@ -1,4 +1,4 @@
-"""Click CLI group with 'run' command."""
+"""Click CLI with benchmark command."""
 
 from __future__ import annotations
 
@@ -13,13 +13,8 @@ from perftok.formatter import write_output
 from perftok.models import BenchmarkConfig
 
 
-@click.group()
+@click.command()
 @click.version_option(version=__version__, prog_name="perftok")
-def main() -> None:
-    """Lightweight benchmarking tool for OpenAI-compatible LLM endpoints."""
-
-
-@main.command()
 @click.option("--model", default=None, help="Model name (auto-discovered if omitted)")
 @click.option("--url", required=True, help="Base URL of the endpoint")
 @click.option("--api-key", default=None, envvar="API_KEY", help="API key (or set API_KEY env var)")
@@ -39,7 +34,7 @@ def main() -> None:
     help="Output format",
 )
 @click.option("--output-file", default=None, type=str, help="Write results to file")
-def run(
+def main(
     model: str | None,
     url: str,
     api_key: str | None,
@@ -55,7 +50,7 @@ def run(
     output_format: str,
     output_file: str | None,
 ) -> None:
-    """Run a benchmark against an OpenAI-compatible endpoint."""
+    """Lightweight benchmarking tool for OpenAI-compatible LLM endpoints."""
     if model is None:
         model = _discover_model(url, api_key, insecure)
 
@@ -81,7 +76,6 @@ def run(
 
 def _discover_model(url: str, api_key: str | None, insecure: bool) -> str:
     """Fetch models from the endpoint and let the user pick one."""
-    # Normalize URL the same way BenchmarkConfig does
     url = url.rstrip("/")
     if url.endswith("/v1"):
         url = url[:-3]
