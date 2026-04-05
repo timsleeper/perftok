@@ -24,20 +24,20 @@ Requires Python 3.10+.
 
 ```bash
 # Benchmark a local vLLM / TGI / Ollama endpoint
-perftok run \
+perftok \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Specify model explicitly
-perftok run \
+perftok \
   --model meta-llama/Meta-Llama-3-8B-Instruct \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Hosted endpoint with API key
-perftok run \
+perftok \
   --url https://api.example.com \
   --api-key $API_KEY \
   --num-requests 50 \
@@ -51,7 +51,7 @@ If `--model` is omitted, perftok queries `/v1/models` and prompts you to confirm
 ## CLI Options
 
 ```
-perftok run [OPTIONS]
+perftok [OPTIONS]
 
   --model TEXT                    Model name (auto-discovered if omitted)
   --url TEXT                      Base URL of the endpoint [required]
@@ -99,14 +99,14 @@ If TLS certificate verification fails, perftok exits with a clear error message.
 - **Concurrency**: `asyncio` + `aiohttp` + `Semaphore` — no threads, no Ray, no ZMQ
 - **Token counting**: `tiktoken` (cl100k_base) for exact prompt-length targeting
 - **Models**: Pydantic v2 for config validation and report serialization
-- **CLI**: Click with a `run` subcommand
+- **CLI**: Click single-command interface
 - **Output**: Rich tables, JSON, CSV
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest -v              # 76 tests
+pytest -v              # 89 tests
 ruff check src/ tests/ # lint
 ```
 

@@ -38,22 +38,11 @@ def sample_report():
     )
 
 
-class TestMainGroup:
-    def test_help_exits_zero(self, runner):
+class TestCli:
+    def test_help_shows_all_options(self, runner):
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
         assert "Lightweight benchmarking" in result.output
-
-    def test_version(self, runner):
-        result = runner.invoke(main, ["--version"])
-        assert result.exit_code == 0
-        assert "0.1.0" in result.output
-
-
-class TestRunCommand:
-    def test_run_help(self, runner):
-        result = runner.invoke(main, ["run", "--help"])
-        assert result.exit_code == 0
         assert "--model" in result.output
         assert "--url" in result.output
         assert "--concurrency" in result.output
@@ -61,17 +50,21 @@ class TestRunCommand:
         assert "--output-format" in result.output
         assert "--insecure" in result.output
 
+    def test_version(self, runner):
+        result = runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+        assert "0.1.0" in result.output
+
     def test_missing_url_exits_nonzero(self, runner):
-        result = runner.invoke(main, ["run"])
+        result = runner.invoke(main, [])
         assert result.exit_code != 0
 
-    def test_run_with_json_output(self, runner, sample_report):
+    def test_json_output(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
                     "--num-requests", "10",
@@ -82,13 +75,12 @@ class TestRunCommand:
         data = json.loads(result.output)
         assert data["total_requests"] == 10
 
-    def test_run_with_table_output(self, runner, sample_report):
+    def test_table_output(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
                     "--output-format", "table",
@@ -97,14 +89,13 @@ class TestRunCommand:
         assert result.exit_code == 0
         assert "TTFT" in result.output
 
-    def test_run_with_file_output(self, runner, sample_report, tmp_path):
+    def test_file_output(self, runner, sample_report, tmp_path):
         outfile = str(tmp_path / "out.json")
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
                     "--output-format", "json",
@@ -116,13 +107,12 @@ class TestRunCommand:
             data = json.loads(f.read())
         assert data["total_requests"] == 10
 
-    def test_run_non_streaming_flag(self, runner, sample_report):
+    def test_non_streaming_flag(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
                     "--no-streaming",
@@ -139,7 +129,6 @@ class TestRunCommand:
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
                     "--insecure",
@@ -161,7 +150,7 @@ class TestModelDiscovery:
         ):
             result = runner.invoke(
                 main,
-                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                ["--url", "http://localhost:8000", "--output-format", "json"],
                 input="y\n",
             )
         assert result.exit_code == 0
@@ -173,7 +162,7 @@ class TestModelDiscovery:
         with patch("perftok.cli.fetch_models", mock_fetch):
             result = runner.invoke(
                 main,
-                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                ["--url", "http://localhost:8000", "--output-format", "json"],
                 input="n\n",
             )
         assert result.exit_code != 0
@@ -187,7 +176,7 @@ class TestModelDiscovery:
         ):
             result = runner.invoke(
                 main,
-                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                ["--url", "http://localhost:8000", "--output-format", "json"],
                 input="2\n",
             )
         assert result.exit_code == 0
@@ -199,7 +188,7 @@ class TestModelDiscovery:
         with patch("perftok.cli.fetch_models", mock_fetch):
             result = runner.invoke(
                 main,
-                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                ["--url", "http://localhost:8000", "--output-format", "json"],
             )
         assert result.exit_code != 0
         assert "connection refused" in result.output
@@ -214,7 +203,6 @@ class TestModelDiscovery:
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--model", "explicit-model",
                     "--url", "http://localhost:8000",
                     "--output-format", "json",
@@ -235,7 +223,6 @@ class TestModelDiscovery:
             result = runner.invoke(
                 main,
                 [
-                    "run",
                     "--url", "http://localhost:8000",
                     "--insecure",
                     "--output-format", "json",
