@@ -10,6 +10,34 @@ import aiohttp
 from tokenflow.models import BenchmarkConfig, RequestResult
 
 
+async def fetch_models(
+    base_url: str,
+    api_key: str | None = None,
+) -> list[str]:
+    """Fetch available model IDs from /v1/models. Raises RuntimeError on failure."""
+    url = f"{base_url}/v1/models"
+    headers: dict[str, str] = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    raise RuntimeError(
+                        f"Failed to fetch models: HTTP {resp.status}: {body[:200]}"
+                    )
+                data = await resp.json()
+    except aiohttp.ClientConnectionError as exc:
+        raise RuntimeError(f"Could not connect to {url}: {exc}") from exc
+
+    models = [m["id"] for m in data.get("data", [])]
+    if not models:
+        raise RuntimeError("No models available at the endpoint")
+    return models
+
+
 async def send_request(
     session: aiohttp.ClientSession,
     config: BenchmarkConfig,

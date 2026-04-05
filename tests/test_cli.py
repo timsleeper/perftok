@@ -60,7 +60,7 @@ class TestRunCommand:
         assert "--streaming" in result.output
         assert "--output-format" in result.output
 
-    def test_missing_required_args(self, runner):
+    def test_missing_url_exits_nonzero(self, runner):
         result = runner.invoke(main, ["run"])
         assert result.exit_code != 0
 
@@ -132,3 +132,78 @@ class TestRunCommand:
         # Verify the config passed to run_benchmark had streaming=False
         call_config = mock_benchmark.call_args[0][0]
         assert call_config.streaming is False
+
+
+class TestModelDiscovery:
+    def test_single_model_user_confirms(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        mock_fetch = AsyncMock(return_value=["discovered-model"])
+        with (
+            patch("tokenflow.cli.run_benchmark", mock_benchmark),
+            patch("tokenflow.cli.fetch_models", mock_fetch),
+        ):
+            result = runner.invoke(
+                main,
+                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                input="y\n",
+            )
+        assert result.exit_code == 0
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.model == "discovered-model"
+
+    def test_single_model_user_rejects(self, runner):
+        mock_fetch = AsyncMock(return_value=["discovered-model"])
+        with patch("tokenflow.cli.fetch_models", mock_fetch):
+            result = runner.invoke(
+                main,
+                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                input="n\n",
+            )
+        assert result.exit_code != 0
+
+    def test_multiple_models_user_picks(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        mock_fetch = AsyncMock(return_value=["model-a", "model-b", "model-c"])
+        with (
+            patch("tokenflow.cli.run_benchmark", mock_benchmark),
+            patch("tokenflow.cli.fetch_models", mock_fetch),
+        ):
+            result = runner.invoke(
+                main,
+                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+                input="2\n",
+            )
+        assert result.exit_code == 0
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.model == "model-b"
+
+    def test_fetch_failure_aborts(self, runner):
+        mock_fetch = AsyncMock(side_effect=RuntimeError("connection refused"))
+        with patch("tokenflow.cli.fetch_models", mock_fetch):
+            result = runner.invoke(
+                main,
+                ["run", "--url", "http://localhost:8000", "--output-format", "json"],
+            )
+        assert result.exit_code != 0
+        assert "connection refused" in result.output
+
+    def test_model_flag_skips_discovery(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        mock_fetch = AsyncMock(return_value=["other-model"])
+        with (
+            patch("tokenflow.cli.run_benchmark", mock_benchmark),
+            patch("tokenflow.cli.fetch_models", mock_fetch),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "run",
+                    "--model", "explicit-model",
+                    "--url", "http://localhost:8000",
+                    "--output-format", "json",
+                ],
+            )
+        assert result.exit_code == 0
+        mock_fetch.assert_not_called()
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.model == "explicit-model"
