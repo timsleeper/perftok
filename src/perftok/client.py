@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import time
-import warnings
 
 import aiohttp
+import click
 
 from perftok.models import BenchmarkConfig, RequestResult
 
@@ -50,11 +50,7 @@ async def fetch_models(
 
     ssl_param: bool | None = False if insecure else None  # noqa: S507
     if insecure:
-        warnings.warn(
-            "TLS/SSL certificate verification is disabled (--insecure).",
-            UserWarning,
-            stacklevel=2,
-        )
+        click.echo("TLS/SSL certificate verification is disabled (--insecure).")
 
     try:
         data = await _get_json(url, headers, ssl=ssl_param)

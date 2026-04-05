@@ -122,6 +122,28 @@ class TestRunBenchmark:
         assert report.total_duration_s > 0
 
     @pytest.mark.asyncio
+    async def test_progress_callback_called(self):
+        """Engine calls progress callback after each request."""
+        progress_calls = []
+
+        async def mock_send(session, config, prompt, max_tokens):
+            return _fake_result(0)
+
+        def on_progress(completed, total):
+            progress_calls.append((completed, total))
+
+        config = _make_config(num_requests=5)
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            with patch("perftok.engine.generate_prompt", return_value="test"):
+                with patch(
+                    "perftok.engine.generate_output_token_count", return_value=50
+                ):
+                    await run_benchmark(config, on_progress=on_progress)
+
+        assert len(progress_calls) == 5
+        assert progress_calls[-1] == (5, 5)
+
+    @pytest.mark.asyncio
     async def test_insecure_skips_ssl_check(self):
         """Engine skips check_ssl and uses ssl=False when insecure=True."""
 

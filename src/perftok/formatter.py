@@ -9,9 +9,32 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from perftok.models import BenchmarkReport
+from perftok.models import BenchmarkConfig, BenchmarkReport
 
 _STAT_FIELDS = ["mean", "stddev", "p50", "p75", "p90", "p95", "p99", "min", "max"]
+
+
+def format_config_table(config: BenchmarkConfig) -> str:
+    """Render benchmark configuration as a Rich table string."""
+    console = Console(file=io.StringIO(), force_terminal=False, width=120)
+
+    tbl = Table(title="Configuration", show_header=True)
+    tbl.add_column("Parameter", style="bold")
+    tbl.add_column("Value", justify="right")
+    tbl.add_row("Model", config.model)
+    tbl.add_row("URL", config.url)
+    tbl.add_row("Concurrency", str(config.concurrency))
+    tbl.add_row("Num Requests", str(config.num_requests))
+    tbl.add_row("Mean Input Tokens", str(config.mean_input_tokens))
+    tbl.add_row("Stddev Input Tokens", str(config.stddev_input_tokens))
+    tbl.add_row("Mean Output Tokens", str(config.mean_output_tokens))
+    tbl.add_row("Stddev Output Tokens", str(config.stddev_output_tokens))
+    tbl.add_row("Timeout (s)", str(config.timeout))
+    tbl.add_row("Streaming", str(config.streaming))
+    tbl.add_row("Insecure", str(config.insecure))
+    console.print(tbl)
+
+    return console.file.getvalue()
 
 
 def format_json(report: BenchmarkReport) -> str:
@@ -74,6 +97,7 @@ def write_output(
     report: BenchmarkReport,
     format_name: str = "table",
     output_file: str | None = None,
+    config: BenchmarkConfig | None = None,
 ) -> str:
     """Format report and optionally write to file. Returns formatted string."""
     formatters = {
@@ -83,6 +107,10 @@ def write_output(
     }
     formatter = formatters[format_name]
     output = formatter(report)
+
+    # Prepend config table for table output
+    if format_name == "table" and config:
+        output = format_config_table(config) + output
 
     if output_file:
         path = Path(output_file).resolve()

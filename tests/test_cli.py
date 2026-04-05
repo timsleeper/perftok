@@ -50,6 +50,17 @@ class TestCli:
         assert "--output-format" in result.output
         assert "--insecure" in result.output
 
+    def test_help_shows_example(self, runner):
+        result = runner.invoke(main, ["--help"])
+        assert "Example:" in result.output
+        assert "--url" in result.output
+        assert "--num-requests" in result.output
+
+    def test_help_shows_defaults(self, runner):
+        result = runner.invoke(main, ["--help"])
+        assert "[required]" in result.output
+        assert "[default: 1]" in result.output or "default:" in result.output
+
     def test_version(self, runner):
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
@@ -75,7 +86,8 @@ class TestCli:
         data = json.loads(result.output)
         assert data["total_requests"] == 10
 
-    def test_table_output(self, runner, sample_report):
+    def test_table_output_includes_config(self, runner, sample_report):
+        """Table output includes a configuration summary table."""
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
@@ -83,11 +95,14 @@ class TestCli:
                 [
                     "--model", "test-model",
                     "--url", "http://localhost:8000",
+                    "--concurrency", "5",
                     "--output-format", "table",
                 ],
             )
         assert result.exit_code == 0
-        assert "TTFT" in result.output
+        assert "Configuration" in result.output
+        assert "test-model" in result.output
+        assert "localhost" in result.output
 
     def test_file_output(self, runner, sample_report, tmp_path):
         outfile = str(tmp_path / "out.json")
@@ -141,6 +156,23 @@ class TestCli:
 
 
 class TestModelDiscovery:
+    def test_single_model_defaults_to_yes(self, runner, sample_report):
+        """Single model confirm defaults to Y — pressing Enter accepts."""
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        mock_fetch = AsyncMock(return_value=["discovered-model"])
+        with (
+            patch("perftok.cli.run_benchmark", mock_benchmark),
+            patch("perftok.cli.fetch_models", mock_fetch),
+        ):
+            result = runner.invoke(
+                main,
+                ["--url", "http://localhost:8000", "--output-format", "json"],
+                input="\n",  # just press Enter — should accept
+            )
+        assert result.exit_code == 0
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.model == "discovered-model"
+
     def test_single_model_user_confirms(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
         mock_fetch = AsyncMock(return_value=["discovered-model"])
