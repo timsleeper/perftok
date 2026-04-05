@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "perftok"
-version = "0.1.1"
+version = "0.1.2"
 description = "Lightweight benchmarking tool for OpenAI-compatible LLM endpoints"
 readme = "README.md"
 license = "Apache-2.0"
