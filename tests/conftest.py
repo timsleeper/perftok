@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import json
 
+import aiohttp
 import pytest
+
+
+def make_ssl_error() -> aiohttp.ClientConnectorSSLError:
+    """Create a testable SSL error, bypassing complex aiohttp internals."""
+    err = aiohttp.ClientConnectorSSLError.__new__(aiohttp.ClientConnectorSSLError)
+    err.args = ("SSL: CERTIFICATE_VERIFY_FAILED",)
+    return err
 
 
 def make_sse_chunk(

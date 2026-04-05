@@ -7,7 +7,7 @@ import time
 
 import aiohttp
 
-from tokenflow.client import send_request
+from tokenflow.client import check_ssl, send_request
 from tokenflow.models import BenchmarkConfig, BenchmarkReport, RequestResult
 from tokenflow.prompt import generate_output_token_count, generate_prompt
 from tokenflow.stats import compute_report
@@ -26,9 +26,14 @@ async def run_benchmark(config: BenchmarkConfig) -> BenchmarkReport:
         async with semaphore:
             return await send_request(session, config, prompt, max_tokens)
 
+    ssl_ok = await check_ssl(config.url, config.api_key)
+    connector = aiohttp.TCPConnector(ssl=None if ssl_ok else False)
+
     start = time.perf_counter()
     timeout = aiohttp.ClientTimeout(total=config.timeout)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    async with aiohttp.ClientSession(
+        connector=connector, timeout=timeout
+    ) as session:
         tasks = [asyncio.create_task(_task(session)) for _ in range(config.num_requests)]
         results = await asyncio.gather(*tasks)
 

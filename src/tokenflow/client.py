@@ -4,10 +4,44 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 
 import aiohttp
 
 from tokenflow.models import BenchmarkConfig, RequestResult
+
+_SSL_ERRORS = (
+    aiohttp.ClientConnectorSSLError,
+    aiohttp.ClientConnectorCertificateError,
+)
+
+
+async def check_ssl(url: str, api_key: str | None = None) -> bool:
+    """Probe whether SSL verification works for *url*.
+
+    Returns True if SSL is fine (or URL is plain HTTP).
+    Returns False and emits a UserWarning if verification fails.
+    """
+    if not url.startswith("https"):
+        return True
+
+    headers: dict[str, str] = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{url}/v1/models", headers=headers):
+                pass
+        return True
+    except _SSL_ERRORS:
+        warnings.warn(
+            f"TLS/SSL certificate verification failed for {url}. "
+            "Proceeding without verification.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return False
 
 
 async def fetch_models(
@@ -21,21 +55,39 @@ async def fetch_models(
         headers["Authorization"] = f"Bearer {api_key}"
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    raise RuntimeError(
-                        f"Failed to fetch models: HTTP {resp.status}: {body[:200]}"
-                    )
-                data = await resp.json()
-    except aiohttp.ClientConnectionError as exc:
-        raise RuntimeError(f"Could not connect to {url}: {exc}") from exc
+        data = await _get_json(url, headers)
+    except _SSL_ERRORS:
+        warnings.warn(
+            f"TLS/SSL certificate verification failed for {base_url}. "
+            "Proceeding without verification.",
+            UserWarning,
+            stacklevel=2,
+        )
+        data = await _get_json(url, headers, ssl=False)
 
     models = [m["id"] for m in data.get("data", [])]
     if not models:
         raise RuntimeError("No models available at the endpoint")
     return models
+
+
+async def _get_json(
+    url: str, headers: dict[str, str], ssl: bool | None = None
+) -> dict:
+    """GET *url* and return parsed JSON. Raises on connection errors."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, ssl=ssl) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    raise RuntimeError(
+                        f"Failed to fetch models: HTTP {resp.status}: {body[:200]}"
+                    )
+                return await resp.json()
+    except aiohttp.ClientConnectionError as exc:
+        if isinstance(exc, _SSL_ERRORS):
+            raise  # let caller handle SSL errors separately
+        raise RuntimeError(f"Could not connect to {url}: {exc}") from exc
 
 
 async def send_request(

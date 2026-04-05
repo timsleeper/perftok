@@ -8,7 +8,8 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
-from tokenflow.client import fetch_models, send_request
+from tests.conftest import make_ssl_error
+from tokenflow.client import check_ssl, fetch_models, send_request
 from tokenflow.models import BenchmarkConfig
 
 BASE_URL = "http://test-server:8000"
@@ -221,3 +222,53 @@ class TestFetchModels:
             m.get(MODELS_URL, payload=payload)
             with pytest.raises(RuntimeError, match="[Nn]o models"):
                 await fetch_models(BASE_URL)
+
+    @pytest.mark.asyncio
+    async def test_ssl_error_warns_and_retries(self):
+        """fetch_models retries with ssl=False on SSL failure."""
+        https_url = "https://local-gpu:8000"
+        models_url = f"{https_url}/v1/models"
+        payload = {
+            "object": "list",
+            "data": [{"id": "local-llama", "object": "model"}],
+        }
+        with aioresponses() as m:
+            m.get(models_url, exception=make_ssl_error())  # first attempt
+            m.get(models_url, payload=payload)  # retry with ssl=False
+            with pytest.warns(UserWarning, match="TLS/SSL"):
+                models = await fetch_models(https_url)
+        assert models == ["local-llama"]
+
+
+HTTPS_URL = "https://local-gpu:8000"
+HTTPS_MODELS_URL = f"{HTTPS_URL}/v1/models"
+
+
+class TestCheckSsl:
+    @pytest.mark.asyncio
+    async def test_http_url_skips_check(self):
+        result = await check_ssl("http://localhost:8000")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_https_valid_cert(self):
+        with aioresponses() as m:
+            m.get(HTTPS_MODELS_URL, status=200)
+            result = await check_ssl(HTTPS_URL)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_https_ssl_failure_returns_false_and_warns(self):
+        with aioresponses() as m:
+            m.get(HTTPS_MODELS_URL, exception=make_ssl_error())
+            with pytest.warns(UserWarning, match="TLS/SSL"):
+                result = await check_ssl(HTTPS_URL)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_https_auth_error_still_returns_true(self):
+        """SSL check passes even if server returns 401 — connection worked."""
+        with aioresponses() as m:
+            m.get(HTTPS_MODELS_URL, status=401)
+            result = await check_ssl(HTTPS_URL)
+        assert result is True
