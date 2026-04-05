@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import tiktoken
 import pytest
+import tiktoken
 
-from tokenflow.prompt import generate_prompt, generate_output_token_count
+from tokenflow.prompt import generate_output_token_count, generate_prompt
 
 
 @pytest.fixture

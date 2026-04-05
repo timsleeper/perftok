@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 
 from rich.console import Console
 from rich.table import Table
 
-from tokenflow.models import BenchmarkReport, LatencyStats
+from tokenflow.models import BenchmarkReport
 
 _STAT_FIELDS = ["mean", "stddev", "p50", "p75", "p90", "p95", "p99", "min", "max"]
 
