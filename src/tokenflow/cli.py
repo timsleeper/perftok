@@ -21,7 +21,7 @@ def main() -> None:
 
 @main.command()
 @click.option("--model", default=None, help="Model name (auto-discovered if omitted)")
-@click.option("--url", required=True, help="Base URL of the OpenAI-compatible endpoint")
+@click.option("--url", required=True, help="Base URL of the endpoint")
 @click.option("--api-key", default=None, envvar="API_KEY", help="API key (or set API_KEY env var)")
 @click.option("--concurrency", default=1, type=int, help="Max concurrent requests")
 @click.option("--num-requests", default=1, type=int, help="Total number of requests")
@@ -30,7 +30,8 @@ def main() -> None:
 @click.option("--mean-output-tokens", default=150, type=int, help="Mean output tokens")
 @click.option("--stddev-output-tokens", default=10, type=int, help="Stddev of output tokens")
 @click.option("--timeout", default=300, type=int, help="Request timeout in seconds")
-@click.option("--streaming/--no-streaming", default=True, help="Use streaming SSE responses")
+@click.option("--streaming/--no-streaming", default=True, help="Use streaming SSE")
+@click.option("--insecure", is_flag=True, default=False, help="Skip TLS/SSL verification")
 @click.option(
     "--output-format",
     type=click.Choice(["table", "json", "csv"]),
@@ -50,12 +51,13 @@ def run(
     stddev_output_tokens: int,
     timeout: int,
     streaming: bool,
+    insecure: bool,
     output_format: str,
     output_file: str | None,
 ) -> None:
     """Run a benchmark against an OpenAI-compatible endpoint."""
     if model is None:
-        model = _discover_model(url, api_key)
+        model = _discover_model(url, api_key, insecure)
 
     config = BenchmarkConfig(
         model=model,
@@ -69,6 +71,7 @@ def run(
         stddev_output_tokens=stddev_output_tokens,
         timeout=timeout,
         streaming=streaming,
+        insecure=insecure,
     )
 
     report = asyncio.run(run_benchmark(config))
@@ -76,7 +79,7 @@ def run(
     click.echo(output)
 
 
-def _discover_model(url: str, api_key: str | None) -> str:
+def _discover_model(url: str, api_key: str | None, insecure: bool) -> str:
     """Fetch models from the endpoint and let the user pick one."""
     # Normalize URL the same way BenchmarkConfig does
     url = url.rstrip("/")
@@ -85,7 +88,9 @@ def _discover_model(url: str, api_key: str | None) -> str:
 
     click.echo(f"No --model specified. Fetching models from {url}...")
     try:
-        models = asyncio.run(fetch_models(url, api_key=api_key))
+        models = asyncio.run(
+            fetch_models(url, api_key=api_key, insecure=insecure)
+        )
     except RuntimeError as exc:
         raise click.ClickException(str(exc)) from exc
 

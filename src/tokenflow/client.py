@@ -16,14 +16,10 @@ _SSL_ERRORS = (
 )
 
 
-async def check_ssl(url: str, api_key: str | None = None) -> bool:
-    """Probe whether SSL verification works for *url*.
-
-    Returns True if SSL is fine (or URL is plain HTTP).
-    Returns False and emits a UserWarning if verification fails.
-    """
+async def check_ssl(url: str, api_key: str | None = None) -> None:
+    """Probe SSL for *url*. Raises RuntimeError if verification fails."""
     if not url.startswith("https"):
-        return True
+        return
 
     headers: dict[str, str] = {}
     if api_key:
@@ -33,20 +29,18 @@ async def check_ssl(url: str, api_key: str | None = None) -> bool:
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{url}/v1/models", headers=headers):
                 pass
-        return True
     except _SSL_ERRORS:
-        warnings.warn(
+        raise RuntimeError(
             f"TLS/SSL certificate verification failed for {url}. "
-            "Proceeding without verification.",
-            UserWarning,
-            stacklevel=2,
+            "Use --insecure to bypass certificate verification."
         )
-        return False
 
 
 async def fetch_models(
     base_url: str,
     api_key: str | None = None,
+    *,
+    insecure: bool = False,
 ) -> list[str]:
     """Fetch available model IDs from /v1/models. Raises RuntimeError on failure."""
     url = f"{base_url}/v1/models"
@@ -54,16 +48,21 @@ async def fetch_models(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    try:
-        data = await _get_json(url, headers)
-    except _SSL_ERRORS:
+    ssl_param: bool | None = False if insecure else None  # noqa: S507
+    if insecure:
         warnings.warn(
-            f"TLS/SSL certificate verification failed for {base_url}. "
-            "Proceeding without verification.",
+            "TLS/SSL certificate verification is disabled (--insecure).",
             UserWarning,
             stacklevel=2,
         )
-        data = await _get_json(url, headers, ssl=False)
+
+    try:
+        data = await _get_json(url, headers, ssl=ssl_param)
+    except _SSL_ERRORS:
+        raise RuntimeError(
+            f"TLS/SSL certificate verification failed for {base_url}. "
+            "Use --insecure to bypass certificate verification."
+        )
 
     models = [m["id"] for m in data.get("data", [])]
     if not models:
@@ -79,9 +78,8 @@ async def _get_json(
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, ssl=ssl) as resp:
                 if resp.status != 200:
-                    body = await resp.text()
                     raise RuntimeError(
-                        f"Failed to fetch models: HTTP {resp.status}: {body[:200]}"
+                        f"Failed to fetch models: HTTP {resp.status}"
                     )
                 return await resp.json()
     except aiohttp.ClientConnectionError as exc:
@@ -112,14 +110,15 @@ async def send_request(
     start = time.perf_counter()
     try:
         timeout = aiohttp.ClientTimeout(total=config.timeout)
-        async with session.post(url, json=payload, headers=headers, timeout=timeout) as resp:
+        async with session.post(
+            url, json=payload, headers=headers, timeout=timeout
+        ) as resp:
             if resp.status != 200:
-                body = await resp.text()
                 elapsed = (time.perf_counter() - start) * 1000
                 return RequestResult(
                     success=False,
                     e2e_latency_ms=elapsed,
-                    error=f"HTTP {resp.status}: {body[:200]}",
+                    error=f"HTTP {resp.status}",
                 )
 
             if config.streaming:
@@ -135,7 +134,9 @@ async def send_request(
     except Exception as exc:
         elapsed = (time.perf_counter() - start) * 1000
         return RequestResult(
-            success=False, e2e_latency_ms=elapsed, error=str(exc)
+            success=False,
+            e2e_latency_ms=elapsed,
+            error=f"{type(exc).__name__}",
         )
 
 

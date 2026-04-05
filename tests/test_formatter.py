@@ -101,3 +101,21 @@ class TestWriteOutput:
         write_output(sample_report, format_name="csv", output_file=str(outfile))
         content = outfile.read_text()
         assert "total_requests" in content
+
+    def test_nonexistent_parent_dir_rejected(self, sample_report):
+        with pytest.raises(FileNotFoundError, match="does not exist"):
+            write_output(
+                sample_report,
+                format_name="json",
+                output_file="/nonexistent/dir/results.json",
+            )
+
+    def test_path_resolved_and_written(self, sample_report, tmp_path):
+        """Paths with .. are resolved before writing."""
+        subdir = tmp_path / "sub"
+        subdir.mkdir()
+        # ../results.json from subdir resolves to tmp_path/results.json
+        outfile = str(subdir / ".." / "results.json")
+        write_output(sample_report, format_name="json", output_file=outfile)
+        resolved = tmp_path / "results.json"
+        assert resolved.exists()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -84,7 +85,12 @@ def write_output(
     output = formatter(report)
 
     if output_file:
-        with open(output_file, "w") as f:
+        path = Path(output_file).resolve()
+        if not path.parent.exists():
+            raise FileNotFoundError(
+                f"Output directory does not exist: {path.parent}"
+            )
+        with open(path, "w") as f:
             f.write(output)
 
     return output

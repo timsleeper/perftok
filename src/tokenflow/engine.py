@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 
 import aiohttp
 
@@ -26,8 +27,18 @@ async def run_benchmark(config: BenchmarkConfig) -> BenchmarkReport:
         async with semaphore:
             return await send_request(session, config, prompt, max_tokens)
 
-    ssl_ok = await check_ssl(config.url, config.api_key)
-    connector = aiohttp.TCPConnector(ssl=None if ssl_ok else False)
+    if config.insecure:
+        warnings.warn(
+            "TLS/SSL certificate verification is disabled (--insecure).",
+            UserWarning,
+            stacklevel=2,
+        )
+        ssl_param: bool | None = False  # noqa: S507
+    else:
+        await check_ssl(config.url, config.api_key)
+        ssl_param = None
+
+    connector = aiohttp.TCPConnector(ssl=ssl_param)
 
     start = time.perf_counter()
     timeout = aiohttp.ClientTimeout(total=config.timeout)

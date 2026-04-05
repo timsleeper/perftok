@@ -29,13 +29,6 @@ def config_non_streaming():
     )
 
 
-def _sse_body(chunks: list[str]) -> str:
-    body = ""
-    for c in chunks:
-        body += f"data: {json.dumps(c) if isinstance(c, dict) else c}\n\n"
-    return body
-
-
 def _make_chunk(content: str = "", finish_reason: str | None = None) -> dict:
     delta = {}
     if content:
@@ -78,7 +71,7 @@ class TestStreamingRequest:
         assert result.ttft_ms is not None
         assert result.ttft_ms > 0
         assert result.e2e_latency_ms > 0
-        assert len(result.inter_token_latencies_ms) == 2  # between 3 tokens
+        assert len(result.inter_token_latencies_ms) == 2
 
     @pytest.mark.asyncio
     async def test_streaming_single_token(self, config):
@@ -133,16 +126,17 @@ class TestNonStreamingRequest:
 
 class TestErrorHandling:
     @pytest.mark.asyncio
-    async def test_http_error(self, config):
+    async def test_http_error_no_body_leakage(self, config):
+        """Error message includes status code but NOT the response body."""
         with aioresponses() as m:
-            m.post(CHAT_URL, status=500)
+            m.post(CHAT_URL, status=500, body="secret internal stack trace")
             async with aiohttp.ClientSession() as session:
                 result = await send_request(
                     session=session, config=config, prompt="test", max_tokens=10
                 )
         assert result.success is False
-        assert result.error is not None
         assert "500" in result.error
+        assert "secret" not in result.error
 
     @pytest.mark.asyncio
     async def test_connection_error(self, config):
@@ -202,11 +196,13 @@ class TestFetchModels:
         assert models == ["m"]
 
     @pytest.mark.asyncio
-    async def test_http_error_raises(self):
+    async def test_http_error_no_body_leakage(self):
+        """Error includes status code but NOT response body."""
         with aioresponses() as m:
-            m.get(MODELS_URL, status=401)
-            with pytest.raises(RuntimeError, match="401"):
+            m.get(MODELS_URL, status=401, body="secret token info")
+            with pytest.raises(RuntimeError, match="401") as exc_info:
                 await fetch_models(BASE_URL)
+        assert "secret" not in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_connection_error_raises(self):
@@ -224,8 +220,18 @@ class TestFetchModels:
                 await fetch_models(BASE_URL)
 
     @pytest.mark.asyncio
-    async def test_ssl_error_warns_and_retries(self):
-        """fetch_models retries with ssl=False on SSL failure."""
+    async def test_ssl_error_without_insecure_raises(self):
+        """SSL failure without insecure=True raises with --insecure hint."""
+        https_url = "https://local-gpu:8000"
+        models_url = f"{https_url}/v1/models"
+        with aioresponses() as m:
+            m.get(models_url, exception=make_ssl_error())
+            with pytest.raises(RuntimeError, match="--insecure"):
+                await fetch_models(https_url)
+
+    @pytest.mark.asyncio
+    async def test_ssl_with_insecure_succeeds(self):
+        """SSL issues are bypassed when insecure=True."""
         https_url = "https://local-gpu:8000"
         models_url = f"{https_url}/v1/models"
         payload = {
@@ -233,10 +239,8 @@ class TestFetchModels:
             "data": [{"id": "local-llama", "object": "model"}],
         }
         with aioresponses() as m:
-            m.get(models_url, exception=make_ssl_error())  # first attempt
-            m.get(models_url, payload=payload)  # retry with ssl=False
-            with pytest.warns(UserWarning, match="TLS/SSL"):
-                models = await fetch_models(https_url)
+            m.get(models_url, payload=payload)
+            models = await fetch_models(https_url, insecure=True)
         assert models == ["local-llama"]
 
 
@@ -247,28 +251,24 @@ HTTPS_MODELS_URL = f"{HTTPS_URL}/v1/models"
 class TestCheckSsl:
     @pytest.mark.asyncio
     async def test_http_url_skips_check(self):
-        result = await check_ssl("http://localhost:8000")
-        assert result is True
+        await check_ssl("http://localhost:8000")  # should not raise
 
     @pytest.mark.asyncio
     async def test_https_valid_cert(self):
         with aioresponses() as m:
             m.get(HTTPS_MODELS_URL, status=200)
-            result = await check_ssl(HTTPS_URL)
-        assert result is True
+            await check_ssl(HTTPS_URL)  # should not raise
 
     @pytest.mark.asyncio
-    async def test_https_ssl_failure_returns_false_and_warns(self):
+    async def test_https_ssl_failure_raises_with_hint(self):
         with aioresponses() as m:
             m.get(HTTPS_MODELS_URL, exception=make_ssl_error())
-            with pytest.warns(UserWarning, match="TLS/SSL"):
-                result = await check_ssl(HTTPS_URL)
-        assert result is False
+            with pytest.raises(RuntimeError, match="--insecure"):
+                await check_ssl(HTTPS_URL)
 
     @pytest.mark.asyncio
-    async def test_https_auth_error_still_returns_true(self):
+    async def test_https_auth_error_passes(self):
         """SSL check passes even if server returns 401 — connection worked."""
         with aioresponses() as m:
             m.get(HTTPS_MODELS_URL, status=401)
-            result = await check_ssl(HTTPS_URL)
-        assert result is True
+            await check_ssl(HTTPS_URL)  # should not raise

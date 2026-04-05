@@ -24,6 +24,8 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4",
     "mypy>=1.10",
+    "pip-audit>=2.7",
+    "bandit>=1.7",
 ]
 
 [project.scripts]
@@ -35,6 +37,11 @@ packages = ["src/tokenflow"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.bandit]
+# B101: assert used in tests (fine)
+# S507: ssl=False is intentional for --insecure flag
+skips = ["B101", "B311"]
 
 [tool.ruff]
 src = ["src", "tests"]

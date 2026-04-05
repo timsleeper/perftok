@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -11,18 +13,24 @@ class BenchmarkConfig(BaseModel):
     model: str
     url: str
     api_key: str | None = None
-    concurrency: int = Field(default=1, gt=0)
-    num_requests: int = Field(default=1, gt=0)
+    concurrency: int = Field(default=1, gt=0, le=10_000)
+    num_requests: int = Field(default=1, gt=0, le=1_000_000)
     mean_input_tokens: int = Field(default=550, gt=0)
     stddev_input_tokens: int = Field(default=150, ge=0)
     mean_output_tokens: int = Field(default=150, gt=0)
     stddev_output_tokens: int = Field(default=10, ge=0)
-    timeout: int = Field(default=300, gt=0)
+    timeout: int = Field(default=300, gt=0, le=3600)
     streaming: bool = True
+    insecure: bool = False
 
     @field_validator("url")
     @classmethod
     def normalize_url(cls, v: str) -> str:
+        parsed = urlparse(v)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError("URL scheme must be http or https")
+        if not parsed.hostname:
+            raise ValueError("URL must include a host")
         v = v.rstrip("/")
         if v.endswith("/v1"):
             v = v[:-3]

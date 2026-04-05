@@ -22,6 +22,7 @@ class TestBenchmarkConfig:
         assert cfg.concurrency == 1
         assert cfg.num_requests == 1
         assert cfg.streaming is True
+        assert cfg.insecure is False
 
     def test_url_trailing_slash_stripped(self):
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000/")
@@ -31,13 +32,39 @@ class TestBenchmarkConfig:
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000/v1/")
         assert cfg.url == "http://localhost:8000"
 
+    def test_url_must_be_http_or_https(self):
+        with pytest.raises(ValidationError, match="http.*https"):
+            BenchmarkConfig(model="m", url="ftp://localhost:8000")
+
+    def test_url_file_scheme_rejected(self):
+        with pytest.raises(ValidationError, match="http.*https"):
+            BenchmarkConfig(model="m", url="file:///etc/passwd")
+
+    def test_url_must_have_host(self):
+        with pytest.raises(ValidationError, match="host"):
+            BenchmarkConfig(model="m", url="http://")
+
+    def test_https_url_accepted(self):
+        cfg = BenchmarkConfig(model="m", url="https://api.example.com")
+        assert cfg.url == "https://api.example.com"
+
     def test_concurrency_must_be_positive(self):
         with pytest.raises(ValidationError):
             BenchmarkConfig(model="m", url="http://localhost:8000", concurrency=0)
 
+    def test_concurrency_upper_bound(self):
+        with pytest.raises(ValidationError):
+            BenchmarkConfig(model="m", url="http://localhost:8000", concurrency=10001)
+
     def test_num_requests_must_be_positive(self):
         with pytest.raises(ValidationError):
             BenchmarkConfig(model="m", url="http://localhost:8000", num_requests=0)
+
+    def test_num_requests_upper_bound(self):
+        with pytest.raises(ValidationError):
+            BenchmarkConfig(
+                model="m", url="http://localhost:8000", num_requests=1_000_001
+            )
 
     def test_mean_input_tokens_must_be_positive(self):
         with pytest.raises(ValidationError):
@@ -45,11 +72,17 @@ class TestBenchmarkConfig:
 
     def test_mean_output_tokens_must_be_positive(self):
         with pytest.raises(ValidationError):
-            BenchmarkConfig(model="m", url="http://localhost:8000", mean_output_tokens=0)
+            BenchmarkConfig(
+                model="m", url="http://localhost:8000", mean_output_tokens=0
+            )
 
     def test_timeout_must_be_positive(self):
         with pytest.raises(ValidationError):
             BenchmarkConfig(model="m", url="http://localhost:8000", timeout=0)
+
+    def test_timeout_upper_bound(self):
+        with pytest.raises(ValidationError):
+            BenchmarkConfig(model="m", url="http://localhost:8000", timeout=3601)
 
     def test_all_fields(self):
         cfg = BenchmarkConfig(
@@ -64,10 +97,12 @@ class TestBenchmarkConfig:
             stddev_output_tokens=10,
             timeout=300,
             streaming=False,
+            insecure=True,
         )
         assert cfg.concurrency == 10
         assert cfg.streaming is False
         assert cfg.api_key == "sk-test"
+        assert cfg.insecure is True
 
     def test_serialization_roundtrip(self):
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000", concurrency=5)

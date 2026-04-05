@@ -59,6 +59,7 @@ class TestRunCommand:
         assert "--concurrency" in result.output
         assert "--streaming" in result.output
         assert "--output-format" in result.output
+        assert "--insecure" in result.output
 
     def test_missing_url_exits_nonzero(self, runner):
         result = runner.invoke(main, ["run"])
@@ -129,9 +130,25 @@ class TestRunCommand:
                 ],
             )
         assert result.exit_code == 0
-        # Verify the config passed to run_benchmark had streaming=False
         call_config = mock_benchmark.call_args[0][0]
         assert call_config.streaming is False
+
+    def test_insecure_flag_passed_to_config(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+            result = runner.invoke(
+                main,
+                [
+                    "run",
+                    "--model", "test-model",
+                    "--url", "http://localhost:8000",
+                    "--insecure",
+                    "--output-format", "json",
+                ],
+            )
+        assert result.exit_code == 0
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.insecure is True
 
 
 class TestModelDiscovery:
@@ -207,3 +224,25 @@ class TestModelDiscovery:
         mock_fetch.assert_not_called()
         call_config = mock_benchmark.call_args[0][0]
         assert call_config.model == "explicit-model"
+
+    def test_insecure_passed_to_fetch_models(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        mock_fetch = AsyncMock(return_value=["discovered-model"])
+        with (
+            patch("tokenflow.cli.run_benchmark", mock_benchmark),
+            patch("tokenflow.cli.fetch_models", mock_fetch),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "run",
+                    "--url", "http://localhost:8000",
+                    "--insecure",
+                    "--output-format", "json",
+                ],
+                input="y\n",
+            )
+        assert result.exit_code == 0
+        mock_fetch.assert_awaited_once()
+        _, kwargs = mock_fetch.call_args
+        assert kwargs.get("insecure") is True

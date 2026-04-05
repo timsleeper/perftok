@@ -122,16 +122,40 @@ class TestRunBenchmark:
         assert report.total_duration_s > 0
 
     @pytest.mark.asyncio
-    async def test_ssl_check_called_and_connector_configured(self):
-        """Engine calls check_ssl and uses ssl=False when it fails."""
+    async def test_insecure_skips_ssl_check(self):
+        """Engine skips check_ssl and uses ssl=False when insecure=True."""
 
         async def mock_send(session, config, prompt, max_tokens):
             return _fake_result(0)
 
         config = _make_config(
-            num_requests=2, url="https://local-gpu:8000"
+            num_requests=2, url="https://local-gpu:8000", insecure=True
         )
-        mock_check = AsyncMock(return_value=False)
+        mock_check = AsyncMock()
+        with (
+            patch("tokenflow.engine.check_ssl", mock_check),
+            patch("tokenflow.engine.send_request", side_effect=mock_send),
+            patch("tokenflow.engine.generate_prompt", return_value="test"),
+            patch(
+                "tokenflow.engine.generate_output_token_count", return_value=50
+            ),
+        ):
+            report = await run_benchmark(config)
+
+        mock_check.assert_not_awaited()
+        assert report.total_requests == 2
+
+    @pytest.mark.asyncio
+    async def test_ssl_check_called_when_not_insecure(self):
+        """Engine calls check_ssl when insecure=False."""
+
+        async def mock_send(session, config, prompt, max_tokens):
+            return _fake_result(0)
+
+        config = _make_config(
+            num_requests=2, url="https://local-gpu:8000", insecure=False
+        )
+        mock_check = AsyncMock()
         with (
             patch("tokenflow.engine.check_ssl", mock_check),
             patch("tokenflow.engine.send_request", side_effect=mock_send),
