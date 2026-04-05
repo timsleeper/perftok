@@ -14,3 +14,12 @@ venv/
 .coverage
 htmlcov/
 *.so
+
+# Secrets and credentials
+.env
+.env.*
+.pypirc
+credentials.json
+secrets.yaml
+*.pem
+*.key
