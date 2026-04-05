@@ -40,7 +40,7 @@ testpaths = ["tests"]
 
 [tool.bandit]
 # B101: assert used in tests (fine)
-# S507: ssl=False is intentional for --insecure flag
+# B311: random module used for benchmark prompt generation, not crypto
 skips = ["B101", "B311"]
 
 [tool.ruff]
