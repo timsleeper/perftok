@@ -8,8 +8,14 @@ import json
 
 import pytest
 
-from perftok.formatter import format_csv, format_json, format_table, write_output
-from perftok.models import BenchmarkReport, LatencyStats
+from perftok.formatter import (
+    format_config_table,
+    format_csv,
+    format_json,
+    format_table,
+    write_output,
+)
+from perftok.models import BenchmarkConfig, BenchmarkReport, LatencyStats
 
 
 @pytest.fixture
@@ -86,6 +92,20 @@ class TestFormatTable:
         output = format_table(sample_report)
         assert "100" in output  # total requests
         assert "5.0" in output  # error rate
+
+
+class TestConfigTable:
+    def test_contains_parameters(self):
+        config = BenchmarkConfig(
+            model="llama3", url="http://localhost:8000", concurrency=10,
+            num_requests=100, streaming=True,
+        )
+        output = format_config_table(config)
+        assert "llama3" in output
+        assert "localhost" in output
+        assert "10" in output
+        assert "100" in output
+        assert "Configuration" in output
 
 
 class TestWriteOutput:
