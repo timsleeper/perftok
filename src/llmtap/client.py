@@ -8,7 +8,7 @@ import warnings
 
 import aiohttp
 
-from tokenflow.models import BenchmarkConfig, RequestResult
+from llmtap.models import BenchmarkConfig, RequestResult
 
 _SSL_ERRORS = (
     aiohttp.ClientConnectorSSLError,

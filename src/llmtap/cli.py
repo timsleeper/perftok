@@ -6,15 +6,15 @@ import asyncio
 
 import click
 
-from tokenflow._version import __version__
-from tokenflow.client import fetch_models
-from tokenflow.engine import run_benchmark
-from tokenflow.formatter import write_output
-from tokenflow.models import BenchmarkConfig
+from llmtap._version import __version__
+from llmtap.client import fetch_models
+from llmtap.engine import run_benchmark
+from llmtap.formatter import write_output
+from llmtap.models import BenchmarkConfig
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="tokenflow")
+@click.version_option(version=__version__, prog_name="llmtap")
 def main() -> None:
     """Lightweight benchmarking tool for OpenAI-compatible LLM endpoints."""
 

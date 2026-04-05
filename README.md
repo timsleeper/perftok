@@ -1,20 +1,20 @@
-# tokenflow
+# llmtap
 
 Lightweight benchmarking tool for OpenAI-compatible LLM endpoints.
 
-tokenflow gives you the same metrics as [aiperf](https://github.com/NVIDIA/aiperf) (TTFT, ITL, throughput, latency percentiles) with a simple pip-installable CLI — no ZMQ services, no Ray dependency, no special binaries.
+llmtap gives you the same metrics as [aiperf](https://github.com/NVIDIA/aiperf) (TTFT, ITL, throughput, latency percentiles) with a simple pip-installable CLI — no ZMQ services, no Ray dependency, no special binaries.
 
 ## Installation
 
 ```bash
-pip install tokenflow
+pip install llmtap
 ```
 
 Or from source:
 
 ```bash
-git clone https://github.com/timsleeper/tokenflow.git
-cd tokenflow
+git clone https://github.com/timsleeper/llmtap.git
+cd llmtap
 pip install -e ".[dev]"
 ```
 
@@ -24,20 +24,20 @@ Requires Python 3.10+.
 
 ```bash
 # Benchmark a local vLLM / TGI / Ollama endpoint
-tokenflow run \
+llmtap run \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Specify model explicitly
-tokenflow run \
+llmtap run \
   --model meta-llama/Meta-Llama-3-8B-Instruct \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Hosted endpoint with API key
-tokenflow run \
+llmtap run \
   --url https://api.example.com \
   --api-key $API_KEY \
   --num-requests 50 \
@@ -46,12 +46,12 @@ tokenflow run \
   --output-file results.json
 ```
 
-If `--model` is omitted, tokenflow queries `/v1/models` and prompts you to confirm.
+If `--model` is omitted, llmtap queries `/v1/models` and prompts you to confirm.
 
 ## CLI Options
 
 ```
-tokenflow run [OPTIONS]
+llmtap run [OPTIONS]
 
   --model TEXT                    Model name (auto-discovered if omitted)
   --url TEXT                      Base URL of the endpoint [required]
@@ -92,7 +92,7 @@ Use `--output-file` to write results to disk in any format.
 
 ## TLS/SSL
 
-tokenflow handles self-signed certificates gracefully. If TLS verification fails, it emits a warning and proceeds without verification — no `--insecure` flag needed. This is common with local inference servers behind self-signed certs.
+If TLS certificate verification fails, llmtap exits with a clear error message. Pass `--insecure` to bypass verification — common with local inference servers behind self-signed certs.
 
 ## Architecture
 

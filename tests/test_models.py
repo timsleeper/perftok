@@ -1,4 +1,4 @@
-"""Tests for tokenflow.models — Pydantic validation and serialization."""
+"""Tests for llmtap.models — Pydantic validation and serialization."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from tokenflow.models import (
+from llmtap.models import (
     BenchmarkConfig,
     BenchmarkReport,
     LatencyStats,

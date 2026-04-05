@@ -1,4 +1,4 @@
-"""Tests for tokenflow.formatter — JSON, CSV, and Rich table output."""
+"""Tests for llmtap.formatter — JSON, CSV, and Rich table output."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from tokenflow.formatter import format_csv, format_json, format_table, write_output
-from tokenflow.models import BenchmarkReport, LatencyStats
+from llmtap.formatter import format_csv, format_json, format_table, write_output
+from llmtap.models import BenchmarkReport, LatencyStats
 
 
 @pytest.fixture

@@ -8,10 +8,10 @@ import warnings
 
 import aiohttp
 
-from tokenflow.client import check_ssl, send_request
-from tokenflow.models import BenchmarkConfig, BenchmarkReport, RequestResult
-from tokenflow.prompt import generate_output_token_count, generate_prompt
-from tokenflow.stats import compute_report
+from llmtap.client import check_ssl, send_request
+from llmtap.models import BenchmarkConfig, BenchmarkReport, RequestResult
+from llmtap.prompt import generate_output_token_count, generate_prompt
+from llmtap.stats import compute_report
 
 
 async def run_benchmark(config: BenchmarkConfig) -> BenchmarkReport:

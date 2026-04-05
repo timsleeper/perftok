@@ -1,11 +1,11 @@
-"""Tests for tokenflow.stats — percentile math and report computation."""
+"""Tests for llmtap.stats — percentile math and report computation."""
 
 from __future__ import annotations
 
 import pytest
 
-from tokenflow.models import RequestResult
-from tokenflow.stats import compute_latency_stats, compute_report
+from llmtap.models import RequestResult
+from llmtap.stats import compute_latency_stats, compute_report
 
 
 class TestComputeLatencyStats:

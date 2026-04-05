@@ -1,11 +1,11 @@
-"""Tests for tokenflow.prompt — synthetic prompt generation."""
+"""Tests for llmtap.prompt — synthetic prompt generation."""
 
 from __future__ import annotations
 
 import pytest
 import tiktoken
 
-from tokenflow.prompt import generate_output_token_count, generate_prompt
+from llmtap.prompt import generate_output_token_count, generate_prompt
 
 
 @pytest.fixture

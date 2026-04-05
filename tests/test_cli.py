@@ -1,4 +1,4 @@
-"""Tests for tokenflow.cli — Click CLI integration."""
+"""Tests for llmtap.cli — Click CLI integration."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from click.testing import CliRunner
 
-from tokenflow.cli import main
-from tokenflow.models import BenchmarkReport, LatencyStats
+from llmtap.cli import main
+from llmtap.models import BenchmarkReport, LatencyStats
 
 
 @pytest.fixture
@@ -67,7 +67,7 @@ class TestRunCommand:
 
     def test_run_with_json_output(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
-        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+        with patch("llmtap.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
@@ -84,7 +84,7 @@ class TestRunCommand:
 
     def test_run_with_table_output(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
-        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+        with patch("llmtap.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
@@ -100,7 +100,7 @@ class TestRunCommand:
     def test_run_with_file_output(self, runner, sample_report, tmp_path):
         outfile = str(tmp_path / "out.json")
         mock_benchmark = AsyncMock(return_value=sample_report)
-        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+        with patch("llmtap.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
@@ -118,7 +118,7 @@ class TestRunCommand:
 
     def test_run_non_streaming_flag(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
-        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+        with patch("llmtap.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
@@ -135,7 +135,7 @@ class TestRunCommand:
 
     def test_insecure_flag_passed_to_config(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
-        with patch("tokenflow.cli.run_benchmark", mock_benchmark):
+        with patch("llmtap.cli.run_benchmark", mock_benchmark):
             result = runner.invoke(
                 main,
                 [
@@ -156,8 +156,8 @@ class TestModelDiscovery:
         mock_benchmark = AsyncMock(return_value=sample_report)
         mock_fetch = AsyncMock(return_value=["discovered-model"])
         with (
-            patch("tokenflow.cli.run_benchmark", mock_benchmark),
-            patch("tokenflow.cli.fetch_models", mock_fetch),
+            patch("llmtap.cli.run_benchmark", mock_benchmark),
+            patch("llmtap.cli.fetch_models", mock_fetch),
         ):
             result = runner.invoke(
                 main,
@@ -170,7 +170,7 @@ class TestModelDiscovery:
 
     def test_single_model_user_rejects(self, runner):
         mock_fetch = AsyncMock(return_value=["discovered-model"])
-        with patch("tokenflow.cli.fetch_models", mock_fetch):
+        with patch("llmtap.cli.fetch_models", mock_fetch):
             result = runner.invoke(
                 main,
                 ["run", "--url", "http://localhost:8000", "--output-format", "json"],
@@ -182,8 +182,8 @@ class TestModelDiscovery:
         mock_benchmark = AsyncMock(return_value=sample_report)
         mock_fetch = AsyncMock(return_value=["model-a", "model-b", "model-c"])
         with (
-            patch("tokenflow.cli.run_benchmark", mock_benchmark),
-            patch("tokenflow.cli.fetch_models", mock_fetch),
+            patch("llmtap.cli.run_benchmark", mock_benchmark),
+            patch("llmtap.cli.fetch_models", mock_fetch),
         ):
             result = runner.invoke(
                 main,
@@ -196,7 +196,7 @@ class TestModelDiscovery:
 
     def test_fetch_failure_aborts(self, runner):
         mock_fetch = AsyncMock(side_effect=RuntimeError("connection refused"))
-        with patch("tokenflow.cli.fetch_models", mock_fetch):
+        with patch("llmtap.cli.fetch_models", mock_fetch):
             result = runner.invoke(
                 main,
                 ["run", "--url", "http://localhost:8000", "--output-format", "json"],
@@ -208,8 +208,8 @@ class TestModelDiscovery:
         mock_benchmark = AsyncMock(return_value=sample_report)
         mock_fetch = AsyncMock(return_value=["other-model"])
         with (
-            patch("tokenflow.cli.run_benchmark", mock_benchmark),
-            patch("tokenflow.cli.fetch_models", mock_fetch),
+            patch("llmtap.cli.run_benchmark", mock_benchmark),
+            patch("llmtap.cli.fetch_models", mock_fetch),
         ):
             result = runner.invoke(
                 main,
@@ -229,8 +229,8 @@ class TestModelDiscovery:
         mock_benchmark = AsyncMock(return_value=sample_report)
         mock_fetch = AsyncMock(return_value=["discovered-model"])
         with (
-            patch("tokenflow.cli.run_benchmark", mock_benchmark),
-            patch("tokenflow.cli.fetch_models", mock_fetch),
+            patch("llmtap.cli.run_benchmark", mock_benchmark),
+            patch("llmtap.cli.fetch_models", mock_fetch),
         ):
             result = runner.invoke(
                 main,
