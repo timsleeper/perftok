@@ -1,11 +1,11 @@
-"""Tests for llmtap.stats — percentile math and report computation."""
+"""Tests for perftok.stats — percentile math and report computation."""
 
 from __future__ import annotations
 
 import pytest
 
-from llmtap.models import RequestResult
-from llmtap.stats import compute_latency_stats, compute_report
+from perftok.models import RequestResult
+from perftok.stats import compute_latency_stats, compute_report
 
 
 class TestComputeLatencyStats:

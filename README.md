@@ -1,20 +1,20 @@
-# llmtap
+# perftok
 
 Lightweight benchmarking tool for OpenAI-compatible LLM endpoints.
 
-llmtap gives you the same metrics as [aiperf](https://github.com/NVIDIA/aiperf) (TTFT, ITL, throughput, latency percentiles) with a simple pip-installable CLI — no ZMQ services, no Ray dependency, no special binaries.
+perftok gives you the same metrics as [aiperf](https://github.com/NVIDIA/aiperf) (TTFT, ITL, throughput, latency percentiles) with a simple pip-installable CLI — no ZMQ services, no Ray dependency, no special binaries.
 
 ## Installation
 
 ```bash
-pip install llmtap
+pip install perftok
 ```
 
 Or from source:
 
 ```bash
-git clone https://github.com/timsleeper/llmtap.git
-cd llmtap
+git clone https://github.com/timsleeper/perftok.git
+cd perftok
 pip install -e ".[dev]"
 ```
 
@@ -24,20 +24,20 @@ Requires Python 3.10+.
 
 ```bash
 # Benchmark a local vLLM / TGI / Ollama endpoint
-llmtap run \
+perftok run \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Specify model explicitly
-llmtap run \
+perftok run \
   --model meta-llama/Meta-Llama-3-8B-Instruct \
   --url http://localhost:8000 \
   --num-requests 100 \
   --concurrency 10
 
 # Hosted endpoint with API key
-llmtap run \
+perftok run \
   --url https://api.example.com \
   --api-key $API_KEY \
   --num-requests 50 \
@@ -46,12 +46,12 @@ llmtap run \
   --output-file results.json
 ```
 
-If `--model` is omitted, llmtap queries `/v1/models` and prompts you to confirm.
+If `--model` is omitted, perftok queries `/v1/models` and prompts you to confirm.
 
 ## CLI Options
 
 ```
-llmtap run [OPTIONS]
+perftok run [OPTIONS]
 
   --model TEXT                    Model name (auto-discovered if omitted)
   --url TEXT                      Base URL of the endpoint [required]
@@ -92,7 +92,7 @@ Use `--output-file` to write results to disk in any format.
 
 ## TLS/SSL
 
-If TLS certificate verification fails, llmtap exits with a clear error message. Pass `--insecure` to bypass verification — common with local inference servers behind self-signed certs.
+If TLS certificate verification fails, perftok exits with a clear error message. Pass `--insecure` to bypass verification — common with local inference servers behind self-signed certs.
 
 ## Architecture
 

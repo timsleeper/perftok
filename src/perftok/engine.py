@@ -8,10 +8,10 @@ import warnings
 
 import aiohttp
 
-from llmtap.client import check_ssl, send_request
-from llmtap.models import BenchmarkConfig, BenchmarkReport, RequestResult
-from llmtap.prompt import generate_output_token_count, generate_prompt
-from llmtap.stats import compute_report
+from perftok.client import check_ssl, send_request
+from perftok.models import BenchmarkConfig, BenchmarkReport, RequestResult
+from perftok.prompt import generate_output_token_count, generate_prompt
+from perftok.stats import compute_report
 
 
 async def run_benchmark(config: BenchmarkConfig) -> BenchmarkReport:

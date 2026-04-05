@@ -6,15 +6,15 @@ import asyncio
 
 import click
 
-from llmtap._version import __version__
-from llmtap.client import fetch_models
-from llmtap.engine import run_benchmark
-from llmtap.formatter import write_output
-from llmtap.models import BenchmarkConfig
+from perftok._version import __version__
+from perftok.client import fetch_models
+from perftok.engine import run_benchmark
+from perftok.formatter import write_output
+from perftok.models import BenchmarkConfig
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="llmtap")
+@click.version_option(version=__version__, prog_name="perftok")
 def main() -> None:
     """Lightweight benchmarking tool for OpenAI-compatible LLM endpoints."""
 

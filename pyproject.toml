@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "llmtap"
+name = "perftok"
 version = "0.1.0"
 description = "Lightweight benchmarking tool for OpenAI-compatible LLM endpoints"
 readme = "README.md"
@@ -30,10 +30,10 @@ dev = [
 ]
 
 [project.scripts]
-llmtap = "llmtap.cli:main"
+perftok = "perftok.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/llmtap"]
+packages = ["src/perftok"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

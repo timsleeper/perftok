@@ -1,4 +1,4 @@
-"""Tests for llmtap.engine — asyncio benchmark orchestrator."""
+"""Tests for perftok.engine — asyncio benchmark orchestrator."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from llmtap.engine import run_benchmark
-from llmtap.models import BenchmarkConfig, RequestResult
+from perftok.engine import run_benchmark
+from perftok.models import BenchmarkConfig, RequestResult
 
 
 def _make_config(**overrides) -> BenchmarkConfig:
@@ -39,10 +39,10 @@ class TestRunBenchmark:
             return _fake_result(call_count)
 
         config = _make_config(num_requests=10)
-        with patch("llmtap.engine.send_request", side_effect=mock_send):
-            with patch("llmtap.engine.generate_prompt", return_value="test"):
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "llmtap.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.generate_output_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -69,10 +69,10 @@ class TestRunBenchmark:
             return _fake_result(0)
 
         config = _make_config(concurrency=3, num_requests=20)
-        with patch("llmtap.engine.send_request", side_effect=mock_send):
-            with patch("llmtap.engine.generate_prompt", return_value="test"):
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "llmtap.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.generate_output_token_count", return_value=50
                 ):
                     await run_benchmark(config)
 
@@ -93,10 +93,10 @@ class TestRunBenchmark:
             return _fake_result(call_count)
 
         config = _make_config(num_requests=9)
-        with patch("llmtap.engine.send_request", side_effect=mock_send):
-            with patch("llmtap.engine.generate_prompt", return_value="test"):
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "llmtap.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.generate_output_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -112,10 +112,10 @@ class TestRunBenchmark:
             return _fake_result(0)
 
         config = _make_config(num_requests=3)
-        with patch("llmtap.engine.send_request", side_effect=mock_send):
-            with patch("llmtap.engine.generate_prompt", return_value="test"):
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "llmtap.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.generate_output_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -133,11 +133,11 @@ class TestRunBenchmark:
         )
         mock_check = AsyncMock()
         with (
-            patch("llmtap.engine.check_ssl", mock_check),
-            patch("llmtap.engine.send_request", side_effect=mock_send),
-            patch("llmtap.engine.generate_prompt", return_value="test"),
+            patch("perftok.engine.check_ssl", mock_check),
+            patch("perftok.engine.send_request", side_effect=mock_send),
+            patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "llmtap.engine.generate_output_token_count", return_value=50
+                "perftok.engine.generate_output_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)
@@ -157,11 +157,11 @@ class TestRunBenchmark:
         )
         mock_check = AsyncMock()
         with (
-            patch("llmtap.engine.check_ssl", mock_check),
-            patch("llmtap.engine.send_request", side_effect=mock_send),
-            patch("llmtap.engine.generate_prompt", return_value="test"),
+            patch("perftok.engine.check_ssl", mock_check),
+            patch("perftok.engine.send_request", side_effect=mock_send),
+            patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "llmtap.engine.generate_output_token_count", return_value=50
+                "perftok.engine.generate_output_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)

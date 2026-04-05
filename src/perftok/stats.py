@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import statistics
 
-from llmtap.models import BenchmarkReport, LatencyStats, RequestResult
+from perftok.models import BenchmarkReport, LatencyStats, RequestResult
 
 
 def compute_latency_stats(values: list[float]) -> LatencyStats | None:

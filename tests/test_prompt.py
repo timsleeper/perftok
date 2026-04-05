@@ -1,11 +1,11 @@
-"""Tests for llmtap.prompt — synthetic prompt generation."""
+"""Tests for perftok.prompt — synthetic prompt generation."""
 
 from __future__ import annotations
 
 import pytest
 import tiktoken
 
-from llmtap.prompt import generate_output_token_count, generate_prompt
+from perftok.prompt import generate_output_token_count, generate_prompt
 
 
 @pytest.fixture

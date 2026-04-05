@@ -1,4 +1,4 @@
-"""Tests for llmtap.client — SSE parsing, timing, error handling."""
+"""Tests for perftok.client — SSE parsing, timing, error handling."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
-from llmtap.client import check_ssl, fetch_models, send_request
-from llmtap.models import BenchmarkConfig
+from perftok.client import check_ssl, fetch_models, send_request
+from perftok.models import BenchmarkConfig
 from tests.conftest import make_ssl_error
 
 BASE_URL = "http://test-server:8000"

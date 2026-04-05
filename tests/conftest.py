@@ -1,4 +1,4 @@
-"""Shared fixtures for llmtap tests."""
+"""Shared fixtures for perftok tests."""
 
 from __future__ import annotations
 

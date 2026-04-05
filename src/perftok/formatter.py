@@ -9,7 +9,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from llmtap.models import BenchmarkReport
+from perftok.models import BenchmarkReport
 
 _STAT_FIELDS = ["mean", "stddev", "p50", "p75", "p90", "p95", "p99", "min", "max"]
 

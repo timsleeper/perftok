@@ -8,7 +8,7 @@ import warnings
 
 import aiohttp
 
-from llmtap.models import BenchmarkConfig, RequestResult
+from perftok.models import BenchmarkConfig, RequestResult
 
 _SSL_ERRORS = (
     aiohttp.ClientConnectorSSLError,

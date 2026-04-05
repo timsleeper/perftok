@@ -1,4 +1,4 @@
-"""Tests for llmtap.formatter — JSON, CSV, and Rich table output."""
+"""Tests for perftok.formatter — JSON, CSV, and Rich table output."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from llmtap.formatter import format_csv, format_json, format_table, write_output
-from llmtap.models import BenchmarkReport, LatencyStats
+from perftok.formatter import format_csv, format_json, format_table, write_output
+from perftok.models import BenchmarkReport, LatencyStats
 
 
 @pytest.fixture

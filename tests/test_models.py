@@ -1,4 +1,4 @@
-"""Tests for llmtap.models — Pydantic validation and serialization."""
+"""Tests for perftok.models — Pydantic validation and serialization."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from llmtap.models import (
+from perftok.models import (
     BenchmarkConfig,
     BenchmarkReport,
     LatencyStats,
