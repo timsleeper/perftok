@@ -183,9 +183,9 @@ async def _handle_streaming(
     end = time.perf_counter()
     e2e = (end - start) * 1000
 
-    itl: list[float] = []
+    icl: list[float] = []
     for i in range(1, len(token_times)):
-        itl.append((token_times[i] - token_times[i - 1]) * 1000)
+        icl.append((token_times[i] - token_times[i - 1]) * 1000)
 
     # Servers may pack several tokens into one SSE chunk, so chunk count is not
     # token count. Prefer the server's own usage report; otherwise tokenize.
@@ -194,12 +194,18 @@ async def _handle_streaming(
     else:
         output_tokens = count_tokens("".join(contents))
 
+    # aiperf definition: decode time spread over the tokens after the first.
+    itl: float | None = None
+    if ttft is not None and output_tokens > 1:
+        itl = (e2e - ttft) / (output_tokens - 1)
+
     return RequestResult(
         success=True,
         ttft_ms=ttft,
         e2e_latency_ms=e2e,
         output_tokens=output_tokens,
-        inter_token_latencies_ms=itl,
+        inter_chunk_latencies_ms=icl,
+        inter_token_latency_ms=itl,
     )
 
 

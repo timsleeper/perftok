@@ -30,7 +30,8 @@ def _fake_result(i: int) -> RequestResult:
         ttft_ms=10.0 + i,
         e2e_latency_ms=100.0 + i,
         output_tokens=10,
-        inter_token_latencies_ms=[5.0],
+        inter_chunk_latencies_ms=[5.0],
+        inter_token_latency_ms=5.0,
     )
 
 

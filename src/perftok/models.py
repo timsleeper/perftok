@@ -46,16 +46,24 @@ class RequestResult(BaseModel):
     ttft_ms: float | None = None
     e2e_latency_ms: float = 0.0
     output_tokens: int = 0
-    inter_token_latencies_ms: list[float] = Field(default_factory=list)
+    inter_chunk_latencies_ms: list[float] = Field(default_factory=list)
+    inter_token_latency_ms: float | None = None
     error: str | None = None
 
     @property
     def output_token_throughput(self) -> float:
-        """Output tokens per second for this request."""
+        """Output tokens per second for this request, including TTFT."""
         latency_s = self.e2e_latency_ms / 1000.0
         if latency_s <= 0:
             return 0.0
         return self.output_tokens / latency_s
+
+    @property
+    def output_token_throughput_per_user(self) -> float | None:
+        """Decode-phase tokens per second for this request (1 / ITL)."""
+        if not self.inter_token_latency_ms:
+            return None
+        return 1000.0 / self.inter_token_latency_ms
 
 
 class LatencyStats(BaseModel):
@@ -81,8 +89,10 @@ class BenchmarkReport(BaseModel):
     total_duration_s: float
     ttft_stats: LatencyStats | None = None
     itl_stats: LatencyStats | None = None
+    icl_stats: LatencyStats | None = None
     e2e_latency_stats: LatencyStats | None = None
     output_throughput_per_request_stats: LatencyStats | None = None
+    output_throughput_per_user_stats: LatencyStats | None = None
     output_token_throughput: float = 0.0
     request_throughput: float = 0.0
     error_rate: float = 0.0

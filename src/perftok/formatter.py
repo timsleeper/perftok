@@ -77,7 +77,7 @@ def format_table(report: BenchmarkReport) -> str:
         s is not None
         for s in [report.ttft_stats, report.itl_stats, report.e2e_latency_stats]
     ):
-        lat = Table(title="Latency Statistics (ms)", show_header=True)
+        lat = Table(title="Latency (ms) and Throughput (tok/s)", show_header=True)
         lat.add_column("Metric", style="bold")
         for f in _STAT_FIELDS:
             lat.add_column(f, justify="right")
@@ -85,8 +85,10 @@ def format_table(report: BenchmarkReport) -> str:
         for name, stats in [
             ("TTFT", report.ttft_stats),
             ("ITL", report.itl_stats),
+            ("ICL", report.icl_stats),
             ("E2E Latency", report.e2e_latency_stats),
             ("Output Throughput/req", report.output_throughput_per_request_stats),
+            ("Output Throughput/user", report.output_throughput_per_user_stats),
         ]:
             if stats:
                 lat.add_row(name, *[f"{getattr(stats, f):.2f}" for f in _STAT_FIELDS])
@@ -142,8 +144,10 @@ def _flatten_report(report: BenchmarkReport) -> dict:
     for prefix, stats in [
         ("ttft", report.ttft_stats),
         ("itl", report.itl_stats),
+        ("icl", report.icl_stats),
         ("e2e_latency", report.e2e_latency_stats),
         ("output_throughput_per_req", report.output_throughput_per_request_stats),
+        ("output_throughput_per_user", report.output_throughput_per_user_stats),
     ]:
         if stats:
             for field in _STAT_FIELDS:

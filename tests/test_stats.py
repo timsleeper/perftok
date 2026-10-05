@@ -44,7 +44,8 @@ class TestComputeReport:
                 ttft_ms=50.0 + i,
                 e2e_latency_ms=200.0 + i,
                 output_tokens=20,
-                inter_token_latencies_ms=[10.0, 12.0],
+                inter_chunk_latencies_ms=[10.0, 12.0],
+                inter_token_latency_ms=7.5,
             )
             for i in range(10)
         ]
@@ -59,6 +60,27 @@ class TestComputeReport:
         assert report.e2e_latency_stats is not None
         assert report.output_token_throughput > 0
 
+    def test_itl_icl_and_per_user_throughput(self):
+        results = [
+            RequestResult(
+                success=True, ttft_ms=50.0, e2e_latency_ms=250.0, output_tokens=21,
+                inter_chunk_latencies_ms=[10.0, 10.0], inter_token_latency_ms=10.0,
+            ),
+            RequestResult(
+                success=True, ttft_ms=50.0, e2e_latency_ms=450.0, output_tokens=21,
+                inter_chunk_latencies_ms=[20.0, 20.0, 20.0], inter_token_latency_ms=20.0,
+            ),
+            RequestResult(success=True, ttft_ms=50.0, e2e_latency_ms=50.0, output_tokens=1),
+        ]
+        report = compute_report(results, total_duration_s=1.0)
+
+        assert report.itl_stats.min == 10.0  # per request, from inter_token_latency_ms
+        assert report.itl_stats.max == 20.0
+        assert report.icl_stats.min == 10.0  # pooled chunk gaps
+        assert report.icl_stats.max == 20.0
+        assert report.output_throughput_per_user_stats.min == 50.0  # 1000 / 20
+        assert report.output_throughput_per_user_stats.max == 100.0  # 1000 / 10
+
     def test_mixed_success_failure(self):
         results = [
             RequestResult(
@@ -66,7 +88,7 @@ class TestComputeReport:
                 ttft_ms=50.0,
                 e2e_latency_ms=200.0,
                 output_tokens=20,
-                inter_token_latencies_ms=[10.0],
+                inter_chunk_latencies_ms=[10.0],
             ),
             RequestResult(success=False, e2e_latency_ms=100.0, error="timeout"),
             RequestResult(success=False, e2e_latency_ms=50.0, error="500"),

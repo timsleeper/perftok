@@ -60,9 +60,17 @@ def compute_report(
     error_rate = (n_fail / total) * 100.0
 
     ttft_values = [r.ttft_ms for r in successful if r.ttft_ms is not None]
-    itl_values = [v for r in successful for v in r.inter_token_latencies_ms]
+    itl_values = [
+        r.inter_token_latency_ms for r in successful if r.inter_token_latency_ms is not None
+    ]
+    icl_values = [v for r in successful for v in r.inter_chunk_latencies_ms]
     e2e_values = [r.e2e_latency_ms for r in successful]
     throughput_values = [r.output_token_throughput for r in successful]
+    per_user_values = [
+        r.output_token_throughput_per_user
+        for r in successful
+        if r.output_token_throughput_per_user is not None
+    ]
 
     total_output_tokens = sum(r.output_tokens for r in successful)
     output_token_throughput = (
@@ -77,8 +85,10 @@ def compute_report(
         total_duration_s=total_duration_s,
         ttft_stats=compute_latency_stats(ttft_values),
         itl_stats=compute_latency_stats(itl_values),
+        icl_stats=compute_latency_stats(icl_values),
         e2e_latency_stats=compute_latency_stats(e2e_values),
         output_throughput_per_request_stats=compute_latency_stats(throughput_values),
+        output_throughput_per_user_stats=compute_latency_stats(per_user_values),
         output_token_throughput=output_token_throughput,
         request_throughput=request_throughput,
         error_rate=error_rate,

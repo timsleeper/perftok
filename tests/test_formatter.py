@@ -35,8 +35,10 @@ def sample_report(sample_stats):
         total_duration_s=10.0,
         ttft_stats=sample_stats,
         itl_stats=sample_stats,
+        icl_stats=sample_stats,
         e2e_latency_stats=sample_stats,
         output_throughput_per_request_stats=sample_stats,
+        output_throughput_per_user_stats=sample_stats,
         output_token_throughput=500.0,
         request_throughput=10.0,
         error_rate=5.0,
@@ -64,6 +66,8 @@ class TestFormatCsv:
         assert "total_requests" in headers
         assert "error_rate" in headers
         assert "ttft_mean" in headers
+        assert "icl_p99" in headers
+        assert "output_throughput_per_user_p50" in headers
 
     def test_single_data_row(self, sample_report):
         output = format_csv(sample_report)
@@ -84,7 +88,9 @@ class TestFormatTable:
         output = format_table(sample_report)
         assert "TTFT" in output
         assert "ITL" in output
+        assert "ICL" in output
         assert "E2E Latency" in output
+        assert "Output Throughput/user" in output
         assert "Output Throughput" in output
         assert "Error Rate" in output
 

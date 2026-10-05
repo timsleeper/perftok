@@ -80,7 +80,29 @@ class TestStreamingRequest:
         assert result.ttft_ms is not None
         assert result.ttft_ms > 0
         assert result.e2e_latency_ms > 0
-        assert len(result.inter_token_latencies_ms) == 2
+        assert len(result.inter_chunk_latencies_ms) == 2
+
+    async def test_itl_is_decode_time_per_token(self, make_server):
+        """ITL follows aiperf: (latency - TTFT) / (output_tokens - 1)."""
+        body = _sse(_chunk("Hello"), _chunk(" world"), _chunk("!", "stop"))
+        url = await make_server({CHAT: sse_handler(body, chunk_delay_s=0.02)})
+
+        result = await _send(url)
+
+        expected = (result.e2e_latency_ms - result.ttft_ms) / (result.output_tokens - 1)
+        assert result.inter_token_latency_ms == pytest.approx(expected)
+
+    async def test_itl_uses_usage_token_count_not_chunk_count(self, make_server):
+        """A single multi-token chunk still yields a per-token ITL."""
+        usage_chunk = {"choices": [], "usage": {"completion_tokens": 11}}
+        body = _sse(_chunk("Hello"), _chunk(" world, how are you doing", "stop"), usage_chunk)
+        url = await make_server({CHAT: sse_handler(body, chunk_delay_s=0.02)})
+
+        result = await _send(url)
+
+        expected = (result.e2e_latency_ms - result.ttft_ms) / 10
+        assert result.inter_token_latency_ms == pytest.approx(expected)
+        assert len(result.inter_chunk_latencies_ms) == 1
 
     async def test_streaming_single_token(self, make_server):
         url = await make_server({CHAT: sse_handler(_sse(_chunk("Hi", "stop")))})
@@ -89,7 +111,8 @@ class TestStreamingRequest:
 
         assert result.success is True
         assert result.output_tokens == 1
-        assert result.inter_token_latencies_ms == []
+        assert result.inter_chunk_latencies_ms == []
+        assert result.inter_token_latency_ms is None
 
     async def test_ttft_reflects_first_chunk_arrival(self, make_server):
         """TTFT measures time to the first content chunk, not the whole stream."""
@@ -168,6 +191,7 @@ class TestNonStreamingRequest:
         assert result.output_tokens == 3
         assert result.e2e_latency_ms > 0
         assert result.ttft_ms is not None
+        assert result.inter_token_latency_ms is None  # undefined without streaming
 
 
 class TestErrorHandling:

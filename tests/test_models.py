@@ -134,7 +134,7 @@ class TestRequestResult:
             ttft_ms=50.0,
             e2e_latency_ms=200.0,
             output_tokens=20,
-            inter_token_latencies_ms=[10.0, 12.0, 11.0],
+            inter_chunk_latencies_ms=[10.0, 12.0, 11.0],
         )
         assert r.success is True
         assert r.error is None
@@ -150,6 +150,18 @@ class TestRequestResult:
         assert r.error == "timeout"
         assert r.ttft_ms is None
         assert r.output_tokens == 0
+
+    def test_per_user_throughput_from_itl(self):
+        r = RequestResult(
+            success=True, ttft_ms=50.0, e2e_latency_ms=200.0, output_tokens=20,
+            inter_token_latency_ms=10.0,
+        )
+        assert r.output_token_throughput_per_user == 100.0  # 1000 ms / 10 ms
+
+    def test_per_user_throughput_none_without_itl(self):
+        r = RequestResult(success=True, e2e_latency_ms=200.0, output_tokens=1)
+        assert r.inter_token_latency_ms is None
+        assert r.output_token_throughput_per_user is None
 
     def test_throughput_zero_latency(self):
         r = RequestResult(success=True, e2e_latency_ms=0.0, output_tokens=10)
