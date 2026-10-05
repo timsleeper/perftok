@@ -278,3 +278,31 @@ class TestInputTokenSampling:
         targets = await self._targets(mean_input_tokens=500, stddev_input_tokens=0)
 
         assert targets == [500] * 60
+
+
+class TestRandomSeed:
+    async def _prompts_and_max_tokens(self, **config_overrides) -> list[tuple[str, int]]:
+        seen: list[tuple[str, int]] = []
+
+        async def mock_send(session, config, prompt, max_tokens):
+            seen.append((prompt, max_tokens))
+            return _fake_result(0)
+
+        config = _make_config(
+            num_requests=10, mean_input_tokens=20, stddev_input_tokens=5, **config_overrides
+        )
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            await run_benchmark(config)
+        return sorted(seen)
+
+    async def test_same_seed_reproduces_workload(self):
+        first = await self._prompts_and_max_tokens(random_seed=42)
+        second = await self._prompts_and_max_tokens(random_seed=42)
+
+        assert first == second
+
+    async def test_different_seeds_differ(self):
+        first = await self._prompts_and_max_tokens(random_seed=1)
+        second = await self._prompts_and_max_tokens(random_seed=2)
+
+        assert first != second

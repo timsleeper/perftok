@@ -22,6 +22,7 @@ class BenchmarkConfig(BaseModel):
     timeout: int = Field(default=300, gt=0, le=3600)
     streaming: bool = True
     insecure: bool = False
+    random_seed: int | None = Field(default=None, ge=0)
 
     @field_validator("url")
     @classmethod

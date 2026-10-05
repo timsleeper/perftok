@@ -104,6 +104,14 @@ class TestBenchmarkConfig:
         assert cfg.api_key == "sk-test"
         assert cfg.insecure is True
 
+    def test_random_seed_defaults_to_none(self):
+        cfg = BenchmarkConfig(model="m", url="http://localhost:8000")
+        assert cfg.random_seed is None
+
+    def test_random_seed_must_be_non_negative(self):
+        with pytest.raises(ValidationError):
+            BenchmarkConfig(model="m", url="http://localhost:8000", random_seed=-1)
+
     def test_serialization_roundtrip(self):
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000", concurrency=5)
         data = json.loads(cfg.model_dump_json())

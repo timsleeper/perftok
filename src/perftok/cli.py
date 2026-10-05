@@ -67,6 +67,10 @@ Example:
     help="Use streaming SSE.",
 )
 @click.option(
+    "--random-seed", default=None, type=int,
+    help="Seed for prompt and length sampling (reproducible workloads).",
+)
+@click.option(
     "--insecure", is_flag=True, default=False,
     help="Skip TLS/SSL certificate verification.",
 )
@@ -92,6 +96,7 @@ def main(
     stddev_output_tokens: int,
     timeout: int,
     streaming: bool,
+    random_seed: int | None,
     insecure: bool,
     output_format: str,
     output_file: str | None,
@@ -113,6 +118,7 @@ def main(
         timeout=timeout,
         streaming=streaming,
         insecure=insecure,
+        random_seed=random_seed,
     )
 
     progress = Progress(

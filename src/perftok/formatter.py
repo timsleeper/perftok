@@ -32,6 +32,8 @@ def format_config_table(config: BenchmarkConfig) -> str:
     tbl.add_row("Timeout (s)", str(config.timeout))
     tbl.add_row("Streaming", str(config.streaming))
     tbl.add_row("Insecure", str(config.insecure))
+    if config.random_seed is not None:
+        tbl.add_row("Random Seed", str(config.random_seed))
     console.print(tbl)
 
     return console.file.getvalue()

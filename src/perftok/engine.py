@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -24,6 +25,9 @@ async def run_benchmark(
     on_progress: Callable[[int, int], None] | None = None,
 ) -> BenchmarkReport:
     """Run the full benchmark and return an aggregated report."""
+    if config.random_seed is not None:
+        random.seed(config.random_seed)
+
     semaphore = asyncio.Semaphore(config.concurrency)
     completed = 0
     lock = asyncio.Lock()
