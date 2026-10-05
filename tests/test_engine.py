@@ -9,6 +9,12 @@ import pytest
 
 from perftok.engine import run_benchmark
 from perftok.models import BenchmarkConfig, RequestResult
+from tests.conftest import sse_handler
+
+_SSE_ONE_TOKEN = (
+    'data: {"choices":[{"index":0,"delta":{"content":"x"},"finish_reason":"stop"}]}\n\n'
+    "data: [DONE]\n\n"
+)
 
 
 def _make_config(**overrides) -> BenchmarkConfig:
@@ -190,3 +196,27 @@ class TestRunBenchmark:
 
         mock_check.assert_awaited_once_with(config.url, config.api_key)
         assert report.total_requests == 2
+
+
+class TestRealServer:
+    """End-to-end engine tests against a real local aiohttp server."""
+
+    async def test_concurrency_above_100_is_honored(self, make_server):
+        """The HTTP connector must not cap concurrency below what was requested."""
+        peak = current = 0
+
+        async def handler(request):
+            nonlocal peak, current
+            current += 1
+            peak = max(peak, current)
+            await asyncio.sleep(0.3)
+            current -= 1
+            return await sse_handler(_SSE_ONE_TOKEN)(request)
+
+        url = await make_server({"POST /v1/chat/completions": handler})
+        config = _make_config(url=url, concurrency=150, num_requests=150, mean_input_tokens=5)
+
+        report = await run_benchmark(config)
+
+        assert report.successful_requests == 150
+        assert peak > 100

@@ -49,7 +49,8 @@ async def run_benchmark(
         await check_ssl(config.url, config.api_key)
         ssl_param = None
 
-    connector = aiohttp.TCPConnector(ssl=ssl_param)
+    # Default connector limit is 100, which would silently cap concurrency.
+    connector = aiohttp.TCPConnector(ssl=ssl_param, limit=config.concurrency)
 
     start = time.perf_counter()
     timeout = aiohttp.ClientTimeout(total=config.timeout)
