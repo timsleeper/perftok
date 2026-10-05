@@ -28,12 +28,10 @@ async def run_benchmark(
     completed = 0
     lock = asyncio.Lock()
 
-    async def _task(session: aiohttp.ClientSession) -> RequestResult:
+    async def _task(
+        session: aiohttp.ClientSession, prompt: str, max_tokens: int
+    ) -> RequestResult:
         nonlocal completed
-        prompt = generate_prompt(config.mean_input_tokens)
-        max_tokens = generate_output_token_count(
-            config.mean_output_tokens, config.stddev_output_tokens
-        )
         async with semaphore:
             result = await send_request(session, config, prompt, max_tokens)
         async with lock:
@@ -52,14 +50,27 @@ async def run_benchmark(
     # Default connector limit is 100, which would silently cap concurrency.
     connector = aiohttp.TCPConnector(ssl=ssl_param, limit=config.concurrency)
 
+    # Build every prompt up front. Tokenizing is synchronous CPU work; doing it
+    # inside the request tasks blocks the event loop while early responses sit
+    # unread, inflating their TTFT and the total duration.
+    jobs = [
+        (
+            generate_prompt(config.mean_input_tokens),
+            generate_output_token_count(
+                config.mean_output_tokens, config.stddev_output_tokens
+            ),
+        )
+        for _ in range(config.num_requests)
+    ]
+
     start = time.perf_counter()
     timeout = aiohttp.ClientTimeout(total=config.timeout)
     async with aiohttp.ClientSession(
         connector=connector, timeout=timeout
     ) as session:
         tasks = [
-            asyncio.create_task(_task(session))
-            for _ in range(config.num_requests)
+            asyncio.create_task(_task(session, prompt, max_tokens))
+            for prompt, max_tokens in jobs
         ]
         results = await asyncio.gather(*tasks)
 

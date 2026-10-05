@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -220,3 +221,27 @@ class TestRealServer:
 
         assert report.successful_requests == 150
         assert peak > 100
+
+    async def test_prompt_generation_does_not_inflate_ttft(self, make_server):
+        """All prompts are built before any request is timed.
+
+        Prompt generation is synchronous CPU work. If it runs inside the request
+        tasks, it blocks the event loop while the first batch of responses sits
+        unread, inflating their TTFT and the total duration.
+        """
+        url = await make_server(
+            {"POST /v1/chat/completions": sse_handler(_SSE_ONE_TOKEN, chunk_delay_s=0.01)}
+        )
+        config = _make_config(url=url, concurrency=5, num_requests=40)
+
+        def slow_generate_prompt(target_tokens: int) -> str:
+            time.sleep(0.01)  # 40 requests -> 0.4 s of blocking if done in-task
+            return "test"
+
+        with patch("perftok.engine.generate_prompt", side_effect=slow_generate_prompt):
+            report = await run_benchmark(config)
+
+        assert report.successful_requests == 40
+        assert report.ttft_stats.max < 150
+        # 40 requests * ~20 ms / concurrency 5 = ~0.2 s ideal
+        assert report.total_duration_s < 0.4

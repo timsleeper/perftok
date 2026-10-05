@@ -29,6 +29,24 @@ class TestGeneratePrompt:
         actual = len(encoding.encode(prompt))
         assert actual == 1000
 
+    def test_does_not_retokenize_per_word(self, monkeypatch):
+        """Generation must be linear: tokenize once, not once per appended word."""
+        import perftok.prompt as prompt_mod
+
+        calls = 0
+        real_encode = prompt_mod._ENCODING.encode
+
+        def counting_encode(text, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return real_encode(text, *args, **kwargs)
+
+        monkeypatch.setattr(prompt_mod._ENCODING, "encode", counting_encode)
+
+        generate_prompt(target_tokens=500)
+
+        assert calls <= 3
+
     def test_returns_string(self):
         prompt = generate_prompt(target_tokens=10)
         assert isinstance(prompt, str)
