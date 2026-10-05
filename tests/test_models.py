@@ -104,6 +104,14 @@ class TestBenchmarkConfig:
         assert cfg.api_key == "sk-test"
         assert cfg.insecure is True
 
+    def test_warmup_requests_defaults_to_zero(self):
+        cfg = BenchmarkConfig(model="m", url="http://localhost:8000")
+        assert cfg.warmup_requests == 0
+
+    def test_warmup_requests_must_be_non_negative(self):
+        with pytest.raises(ValidationError):
+            BenchmarkConfig(model="m", url="http://localhost:8000", warmup_requests=-1)
+
     def test_random_seed_defaults_to_none(self):
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000")
         assert cfg.random_seed is None

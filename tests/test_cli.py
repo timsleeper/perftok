@@ -138,6 +138,22 @@ class TestCli:
         call_config = mock_benchmark.call_args[0][0]
         assert call_config.streaming is False
 
+    def test_warmup_requests_passed_to_config(self, runner, sample_report):
+        mock_benchmark = AsyncMock(return_value=sample_report)
+        with patch("perftok.cli.run_benchmark", mock_benchmark):
+            result = runner.invoke(
+                main,
+                [
+                    "--model", "test-model",
+                    "--url", "http://localhost:8000",
+                    "--warmup-requests", "3",
+                    "--output-format", "json",
+                ],
+            )
+        assert result.exit_code == 0
+        call_config = mock_benchmark.call_args[0][0]
+        assert call_config.warmup_requests == 3
+
     def test_random_seed_passed_to_config(self, runner, sample_report):
         mock_benchmark = AsyncMock(return_value=sample_report)
         with patch("perftok.cli.run_benchmark", mock_benchmark):

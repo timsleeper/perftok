@@ -43,6 +43,10 @@ Example:
     help="Total number of requests.",
 )
 @click.option(
+    "--warmup-requests", default=0, type=int, show_default=True,
+    help="Requests to send and discard before measuring.",
+)
+@click.option(
     "--mean-input-tokens", default=550, type=int, show_default=True,
     help="Mean input prompt tokens.",
 )
@@ -90,6 +94,7 @@ def main(
     api_key: str | None,
     concurrency: int,
     num_requests: int,
+    warmup_requests: int,
     mean_input_tokens: int,
     stddev_input_tokens: int,
     mean_output_tokens: int,
@@ -111,6 +116,7 @@ def main(
         api_key=api_key,
         concurrency=concurrency,
         num_requests=num_requests,
+        warmup_requests=warmup_requests,
         mean_input_tokens=mean_input_tokens,
         stddev_input_tokens=stddev_input_tokens,
         mean_output_tokens=mean_output_tokens,

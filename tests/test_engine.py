@@ -306,3 +306,40 @@ class TestRandomSeed:
         second = await self._prompts_and_max_tokens(random_seed=2)
 
         assert first != second
+
+
+class TestWarmup:
+    async def test_warmup_requests_sent_first_and_excluded_from_report(self):
+        events: list[str] = []
+
+        async def mock_send(session, config, prompt, max_tokens):
+            events.append("send")
+            return _fake_result(0)
+
+        def on_progress(completed, total):
+            events.append(f"progress {completed}/{total}")
+
+        config = _make_config(num_requests=5, warmup_requests=3)
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            report = await run_benchmark(config, on_progress=on_progress)
+
+        assert events.count("send") == 8
+        assert events[:3] == ["send"] * 3  # warmup completes before any progress
+        assert events[-1] == "progress 5/5"
+        assert report.total_requests == 5
+
+    async def test_warmup_time_excluded_from_duration(self):
+        calls = 0
+
+        async def mock_send(session, config, prompt, max_tokens):
+            nonlocal calls
+            calls += 1
+            if calls <= 3:
+                await asyncio.sleep(0.05)  # slow warmup requests
+            return _fake_result(0)
+
+        config = _make_config(num_requests=5, warmup_requests=3, concurrency=1)
+        with patch("perftok.engine.send_request", side_effect=mock_send):
+            report = await run_benchmark(config)
+
+        assert report.total_duration_s < 0.05

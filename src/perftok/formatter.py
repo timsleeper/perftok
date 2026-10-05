@@ -25,6 +25,7 @@ def format_config_table(config: BenchmarkConfig) -> str:
     tbl.add_row("URL", config.url)
     tbl.add_row("Concurrency", str(config.concurrency))
     tbl.add_row("Num Requests", str(config.num_requests))
+    tbl.add_row("Warmup Requests", str(config.warmup_requests))
     tbl.add_row("Mean Input Tokens", str(config.mean_input_tokens))
     tbl.add_row("Stddev Input Tokens", str(config.stddev_input_tokens))
     tbl.add_row("Mean Output Tokens", str(config.mean_output_tokens))

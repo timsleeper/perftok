@@ -15,6 +15,7 @@ class BenchmarkConfig(BaseModel):
     api_key: str | None = None
     concurrency: int = Field(default=1, gt=0, le=10_000)
     num_requests: int = Field(default=1, gt=0, le=1_000_000)
+    warmup_requests: int = Field(default=0, ge=0, le=1_000_000)
     mean_input_tokens: int = Field(default=550, gt=0)
     stddev_input_tokens: int = Field(default=150, ge=0)
     mean_output_tokens: int = Field(default=150, gt=0)

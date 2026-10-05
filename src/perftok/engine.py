@@ -6,7 +6,6 @@ import asyncio
 import random
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 import aiohttp
 import click
@@ -16,9 +15,6 @@ from perftok.models import BenchmarkConfig, BenchmarkReport, RequestResult
 from perftok.prompt import generate_prompt, sample_token_count
 from perftok.stats import compute_report
 
-if TYPE_CHECKING:
-    pass
-
 
 async def run_benchmark(
     config: BenchmarkConfig,
@@ -27,22 +23,6 @@ async def run_benchmark(
     """Run the full benchmark and return an aggregated report."""
     if config.random_seed is not None:
         random.seed(config.random_seed)
-
-    semaphore = asyncio.Semaphore(config.concurrency)
-    completed = 0
-    lock = asyncio.Lock()
-
-    async def _task(
-        session: aiohttp.ClientSession, prompt: str, max_tokens: int
-    ) -> RequestResult:
-        nonlocal completed
-        async with semaphore:
-            result = await send_request(session, config, prompt, max_tokens)
-        async with lock:
-            completed += 1
-            if on_progress:
-                on_progress(completed, config.num_requests)
-        return result
 
     if config.insecure:
         click.echo("TLS/SSL certificate verification is disabled (--insecure).")
@@ -57,26 +37,53 @@ async def run_benchmark(
     # Build every prompt up front. Tokenizing is synchronous CPU work; doing it
     # inside the request tasks blocks the event loop while early responses sit
     # unread, inflating their TTFT and the total duration.
-    jobs = [
+    warmup_jobs = _generate_jobs(config, config.warmup_requests)
+    jobs = _generate_jobs(config, config.num_requests)
+
+    timeout = aiohttp.ClientTimeout(total=config.timeout)
+    async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+        if warmup_jobs:
+            click.echo(f"Warming up with {len(warmup_jobs)} requests...")
+            await _run_jobs(session, config, warmup_jobs)
+
+        start = time.perf_counter()
+        results = await _run_jobs(session, config, jobs, on_progress)
+        total_duration = time.perf_counter() - start
+
+    return compute_report(results, total_duration_s=total_duration)
+
+
+def _generate_jobs(config: BenchmarkConfig, count: int) -> list[tuple[str, int]]:
+    """Sample *count* (prompt, max_tokens) pairs from the configured distributions."""
+    return [
         (
             generate_prompt(
                 sample_token_count(config.mean_input_tokens, config.stddev_input_tokens)
             ),
             sample_token_count(config.mean_output_tokens, config.stddev_output_tokens),
         )
-        for _ in range(config.num_requests)
+        for _ in range(count)
     ]
 
-    start = time.perf_counter()
-    timeout = aiohttp.ClientTimeout(total=config.timeout)
-    async with aiohttp.ClientSession(
-        connector=connector, timeout=timeout
-    ) as session:
-        tasks = [
-            asyncio.create_task(_task(session, prompt, max_tokens))
-            for prompt, max_tokens in jobs
-        ]
-        results = await asyncio.gather(*tasks)
 
-    total_duration = time.perf_counter() - start
-    return compute_report(list(results), total_duration_s=total_duration)
+async def _run_jobs(
+    session: aiohttp.ClientSession,
+    config: BenchmarkConfig,
+    jobs: list[tuple[str, int]],
+    on_progress: Callable[[int, int], None] | None = None,
+) -> list[RequestResult]:
+    """Send every job with at most config.concurrency in flight."""
+    semaphore = asyncio.Semaphore(config.concurrency)
+    completed = 0
+
+    async def _task(prompt: str, max_tokens: int) -> RequestResult:
+        nonlocal completed
+        async with semaphore:
+            result = await send_request(session, config, prompt, max_tokens)
+        completed += 1
+        if on_progress:
+            on_progress(completed, len(jobs))
+        return result
+
+    tasks = [asyncio.create_task(_task(prompt, max_tokens)) for prompt, max_tokens in jobs]
+    return list(await asyncio.gather(*tasks))
