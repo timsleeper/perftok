@@ -9,6 +9,7 @@ import aiohttp
 import click
 
 from perftok.models import BenchmarkConfig, RequestResult
+from perftok.prompt import count_tokens
 
 _SSL_ERRORS = (
     aiohttp.ClientConnectorSSLError,
@@ -102,6 +103,10 @@ async def send_request(
         "max_tokens": max_tokens,
         "stream": config.streaming,
     }
+    if config.streaming:
+        # Ask the server to report token usage in a final chunk so we can
+        # count real tokens instead of SSE chunks.
+        payload["stream_options"] = {"include_usage": True}
 
     start = time.perf_counter()
     try:
@@ -143,7 +148,8 @@ async def _handle_streaming(
     """Parse SSE stream, measure TTFT and inter-token latencies."""
     ttft: float | None = None
     token_times: list[float] = []
-    output_tokens = 0
+    contents: list[str] = []
+    usage_tokens: int | None = None
 
     async for line_bytes in resp.content:
         line = line_bytes.decode("utf-8").strip()
@@ -158,6 +164,10 @@ async def _handle_streaming(
         except json.JSONDecodeError:
             continue
 
+        usage = chunk.get("usage")
+        if usage and usage.get("completion_tokens") is not None:
+            usage_tokens = usage["completion_tokens"]
+
         choices = chunk.get("choices", [])
         if not choices:
             continue
@@ -168,7 +178,7 @@ async def _handle_streaming(
             if ttft is None:
                 ttft = (now - start) * 1000
             token_times.append(now)
-            output_tokens += 1
+            contents.append(content)
 
     end = time.perf_counter()
     e2e = (end - start) * 1000
@@ -176,6 +186,13 @@ async def _handle_streaming(
     itl: list[float] = []
     for i in range(1, len(token_times)):
         itl.append((token_times[i] - token_times[i - 1]) * 1000)
+
+    # Servers may pack several tokens into one SSE chunk, so chunk count is not
+    # token count. Prefer the server's own usage report; otherwise tokenize.
+    if usage_tokens is not None:
+        output_tokens = usage_tokens
+    else:
+        output_tokens = count_tokens("".join(contents))
 
     return RequestResult(
         success=True,

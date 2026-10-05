@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from perftok.engine import run_benchmark
 from perftok.models import BenchmarkConfig, RequestResult
+from tests.conftest import sse_handler
+
+_SSE_ONE_TOKEN = (
+    'data: {"choices":[{"index":0,"delta":{"content":"x"},"finish_reason":"stop"}]}\n\n'
+    "data: [DONE]\n\n"
+)
 
 
 def _make_config(**overrides) -> BenchmarkConfig:
@@ -42,7 +49,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -72,7 +79,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     await run_benchmark(config)
 
@@ -96,7 +103,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -115,7 +122,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -136,7 +143,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     await run_benchmark(config, on_progress=on_progress)
 
@@ -159,7 +166,7 @@ class TestRunBenchmark:
             patch("perftok.engine.send_request", side_effect=mock_send),
             patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "perftok.engine.generate_output_token_count", return_value=50
+                "perftok.engine.sample_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)
@@ -183,10 +190,91 @@ class TestRunBenchmark:
             patch("perftok.engine.send_request", side_effect=mock_send),
             patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "perftok.engine.generate_output_token_count", return_value=50
+                "perftok.engine.sample_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)
 
         mock_check.assert_awaited_once_with(config.url, config.api_key)
         assert report.total_requests == 2
+
+
+class TestRealServer:
+    """End-to-end engine tests against a real local aiohttp server."""
+
+    async def test_concurrency_above_100_is_honored(self, make_server):
+        """The HTTP connector must not cap concurrency below what was requested."""
+        peak = current = 0
+
+        async def handler(request):
+            nonlocal peak, current
+            current += 1
+            peak = max(peak, current)
+            await asyncio.sleep(0.3)
+            current -= 1
+            return await sse_handler(_SSE_ONE_TOKEN)(request)
+
+        url = await make_server({"POST /v1/chat/completions": handler})
+        config = _make_config(url=url, concurrency=150, num_requests=150, mean_input_tokens=5)
+
+        report = await run_benchmark(config)
+
+        assert report.successful_requests == 150
+        assert peak > 100
+
+    async def test_prompt_generation_does_not_inflate_ttft(self, make_server):
+        """All prompts are built before any request is timed.
+
+        Prompt generation is synchronous CPU work. If it runs inside the request
+        tasks, it blocks the event loop while the first batch of responses sits
+        unread, inflating their TTFT and the total duration.
+        """
+        url = await make_server(
+            {"POST /v1/chat/completions": sse_handler(_SSE_ONE_TOKEN, chunk_delay_s=0.01)}
+        )
+        config = _make_config(url=url, concurrency=5, num_requests=40)
+
+        def slow_generate_prompt(target_tokens: int) -> str:
+            time.sleep(0.01)  # 40 requests -> 0.4 s of blocking if done in-task
+            return "test"
+
+        with patch("perftok.engine.generate_prompt", side_effect=slow_generate_prompt):
+            report = await run_benchmark(config)
+
+        assert report.successful_requests == 40
+        assert report.ttft_stats.max < 150
+        # 40 requests * ~20 ms / concurrency 5 = ~0.2 s ideal
+        assert report.total_duration_s < 0.4
+
+
+class TestInputTokenSampling:
+    async def _targets(self, **config_overrides) -> list[int]:
+        """Run the engine and return the target token count passed to generate_prompt."""
+        targets: list[int] = []
+
+        def record(target_tokens: int) -> str:
+            targets.append(target_tokens)
+            return "test"
+
+        async def mock_send(session, config, prompt, max_tokens):
+            return _fake_result(0)
+
+        config = _make_config(num_requests=60, **config_overrides)
+        with (
+            patch("perftok.engine.send_request", side_effect=mock_send),
+            patch("perftok.engine.generate_prompt", side_effect=record),
+        ):
+            await run_benchmark(config)
+        return targets
+
+    async def test_input_tokens_vary_with_stddev(self):
+        targets = await self._targets(mean_input_tokens=500, stddev_input_tokens=100)
+
+        assert len(targets) == 60
+        assert min(targets) < 500 < max(targets)
+        assert min(targets) >= 1
+
+    async def test_input_tokens_fixed_when_stddev_zero(self):
+        targets = await self._targets(mean_input_tokens=500, stddev_input_tokens=0)
+
+        assert targets == [500] * 60
