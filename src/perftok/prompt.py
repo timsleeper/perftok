@@ -18,6 +18,11 @@ _WORD_POOL = [
 ]
 
 
+def count_tokens(text: str) -> int:
+    """Return the number of cl100k_base tokens in *text*."""
+    return len(_ENCODING.encode(text))
+
+
 def generate_prompt(target_tokens: int) -> str:
     """Generate a string that encodes to exactly *target_tokens* tokens (cl100k_base)."""
     if target_tokens <= 0:
