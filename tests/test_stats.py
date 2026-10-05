@@ -81,6 +81,30 @@ class TestComputeReport:
         assert report.output_throughput_per_user_stats.min == 50.0  # 1000 / 20
         assert report.output_throughput_per_user_stats.max == 100.0  # 1000 / 10
 
+    def test_output_length_mismatch(self):
+        """Mismatch when |actual - requested| > min(5% of requested, 50) tokens."""
+
+        def r(actual: int, requested: int) -> RequestResult:
+            return RequestResult(
+                success=True, e2e_latency_ms=100.0, output_tokens=actual,
+                requested_output_tokens=requested,
+            )
+
+        results = [r(100, 100), r(98, 100), r(50, 100), r(2000, 2000), r(1940, 2000)]
+        report = compute_report(results, total_duration_s=1.0)
+
+        assert report.output_tokens_mean == pytest.approx((100 + 98 + 50 + 2000 + 1940) / 5)
+        assert report.requested_output_tokens_mean == pytest.approx(4300 / 5)
+        assert report.output_length_mismatch_count == 2  # 50/100 and 1940/2000
+        assert report.output_length_mismatch_rate == pytest.approx(40.0)
+
+    def test_no_requested_tokens_means_no_mismatch(self):
+        results = [RequestResult(success=True, e2e_latency_ms=1.0, output_tokens=5)]
+        report = compute_report(results, total_duration_s=1.0)
+
+        assert report.requested_output_tokens_mean is None
+        assert report.output_length_mismatch_count == 0
+
     def test_mixed_success_failure(self):
         results = [
             RequestResult(

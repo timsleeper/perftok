@@ -22,6 +22,7 @@ class BenchmarkConfig(BaseModel):
     stddev_output_tokens: int = Field(default=10, ge=0)
     timeout: int = Field(default=300, gt=0, le=3600)
     streaming: bool = True
+    ignore_eos: bool = False
     insecure: bool = False
     random_seed: int | None = Field(default=None, ge=0)
 
@@ -46,6 +47,7 @@ class RequestResult(BaseModel):
     ttft_ms: float | None = None
     e2e_latency_ms: float = 0.0
     output_tokens: int = 0
+    requested_output_tokens: int | None = None
     inter_chunk_latencies_ms: list[float] = Field(default_factory=list)
     inter_token_latency_ms: float | None = None
     error: str | None = None
@@ -96,3 +98,7 @@ class BenchmarkReport(BaseModel):
     output_token_throughput: float = 0.0
     request_throughput: float = 0.0
     error_rate: float = 0.0
+    output_tokens_mean: float | None = None
+    requested_output_tokens_mean: float | None = None
+    output_length_mismatch_count: int = 0
+    output_length_mismatch_rate: float = 0.0

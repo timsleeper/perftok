@@ -166,6 +166,39 @@ class TestStreamingRequest:
         assert seen[0]["stream"] is True
         assert seen[0]["stream_options"] == {"include_usage": True}
 
+    async def test_ignore_eos_sends_ignore_eos_and_min_tokens(self, make_server):
+        seen: list[dict] = []
+
+        async def handler(request: web.Request) -> web.StreamResponse:
+            seen.append(await request.json())
+            return await sse_handler(_sse(_chunk("x", "stop")))(request)
+
+        url = await make_server({CHAT: handler})
+        await _send(url, _config(url, ignore_eos=True))
+
+        assert seen[0]["ignore_eos"] is True
+        assert seen[0]["min_tokens"] == seen[0]["max_tokens"]
+
+    async def test_ignore_eos_off_sends_neither(self, make_server):
+        seen: list[dict] = []
+
+        async def handler(request: web.Request) -> web.StreamResponse:
+            seen.append(await request.json())
+            return await sse_handler(_sse(_chunk("x", "stop")))(request)
+
+        url = await make_server({CHAT: handler})
+        await _send(url)
+
+        assert "ignore_eos" not in seen[0]
+        assert "min_tokens" not in seen[0]
+
+    async def test_result_records_requested_output_tokens(self, make_server):
+        url = await make_server({CHAT: sse_handler(_sse(_chunk("x", "stop")))})
+
+        result = await _send(url)
+
+        assert result.requested_output_tokens == 100  # max_tokens passed by _send
+
     async def test_non_streaming_request_omits_stream_options(self, make_server):
         seen: list[dict] = []
 

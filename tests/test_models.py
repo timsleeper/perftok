@@ -112,6 +112,10 @@ class TestBenchmarkConfig:
         with pytest.raises(ValidationError):
             BenchmarkConfig(model="m", url="http://localhost:8000", warmup_requests=-1)
 
+    def test_ignore_eos_defaults_to_false(self):
+        cfg = BenchmarkConfig(model="m", url="http://localhost:8000")
+        assert cfg.ignore_eos is False
+
     def test_random_seed_defaults_to_none(self):
         cfg = BenchmarkConfig(model="m", url="http://localhost:8000")
         assert cfg.random_seed is None
@@ -162,6 +166,10 @@ class TestRequestResult:
         r = RequestResult(success=True, e2e_latency_ms=200.0, output_tokens=1)
         assert r.inter_token_latency_ms is None
         assert r.output_token_throughput_per_user is None
+
+    def test_requested_output_tokens_default_none(self):
+        r = RequestResult(success=True, e2e_latency_ms=1.0)
+        assert r.requested_output_tokens is None
 
     def test_throughput_zero_latency(self):
         r = RequestResult(success=True, e2e_latency_ms=0.0, output_tokens=10)

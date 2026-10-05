@@ -73,6 +73,15 @@ def compute_report(
     ]
 
     total_output_tokens = sum(r.output_tokens for r in successful)
+    output_tokens_mean = total_output_tokens / n_success if n_success else None
+
+    requested = [r for r in successful if r.requested_output_tokens is not None]
+    requested_mean: float | None = None
+    mismatches = 0
+    if requested:
+        requested_mean = sum(r.requested_output_tokens for r in requested) / len(requested)
+        mismatches = sum(1 for r in requested if _output_length_mismatch(r))
+    mismatch_rate = (mismatches / len(requested)) * 100.0 if requested else 0.0
     output_token_throughput = (
         total_output_tokens / total_duration_s if total_duration_s > 0 else 0.0
     )
@@ -92,4 +101,18 @@ def compute_report(
         output_token_throughput=output_token_throughput,
         request_throughput=request_throughput,
         error_rate=error_rate,
+        output_tokens_mean=output_tokens_mean,
+        requested_output_tokens_mean=requested_mean,
+        output_length_mismatch_count=mismatches,
+        output_length_mismatch_rate=mismatch_rate,
     )
+
+
+def _output_length_mismatch(r: RequestResult) -> bool:
+    """True if actual output length strays from the requested length.
+
+    Same tolerance as aiperf: 5% of the requested length, capped at 50 tokens.
+    """
+    requested = r.requested_output_tokens or 0
+    tolerance = min(requested * 0.05, 50)
+    return abs(r.output_tokens - requested) > tolerance

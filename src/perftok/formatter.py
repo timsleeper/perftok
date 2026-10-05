@@ -32,6 +32,7 @@ def format_config_table(config: BenchmarkConfig) -> str:
     tbl.add_row("Stddev Output Tokens", str(config.stddev_output_tokens))
     tbl.add_row("Timeout (s)", str(config.timeout))
     tbl.add_row("Streaming", str(config.streaming))
+    tbl.add_row("Ignore EOS", str(config.ignore_eos))
     tbl.add_row("Insecure", str(config.insecure))
     if config.random_seed is not None:
         tbl.add_row("Random Seed", str(config.random_seed))
@@ -70,6 +71,18 @@ def format_table(report: BenchmarkReport) -> str:
     summary.add_row("Output Throughput (tok/s)", f"{report.output_token_throughput:.2f}")
     summary.add_row("Request Throughput (req/s)", f"{report.request_throughput:.2f}")
     summary.add_row("Error Rate (%)", f"{report.error_rate:.1f}")
+    if report.output_tokens_mean is not None:
+        actual = f"{report.output_tokens_mean:.1f}"
+        if report.requested_output_tokens_mean is not None:
+            actual += f" / {report.requested_output_tokens_mean:.1f}"
+            summary.add_row("Output Tokens/req (actual / requested)", actual)
+            summary.add_row(
+                "Output Length Mismatches",
+                f"{report.output_length_mismatch_count} "
+                f"({report.output_length_mismatch_rate:.1f}%)",
+            )
+        else:
+            summary.add_row("Output Tokens/req", actual)
     console.print(summary)
 
     # Latency breakdown table
@@ -116,6 +129,13 @@ def write_output(
     # Prepend config table for table output
     if format_name == "table" and config:
         output = format_config_table(config) + output
+        if report.output_length_mismatch_count and not config.ignore_eos:
+            output += (
+                f"Warning: {report.output_length_mismatch_count} requests produced an "
+                "output length that differs from the requested max_tokens, so the "
+                "workload did not match the configured output length. Use --ignore-eos "
+                "on servers that support it (vLLM, SGLang, TensorRT-LLM).\n"
+            )
 
     if output_file:
         path = Path(output_file).resolve()
@@ -139,6 +159,10 @@ def _flatten_report(report: BenchmarkReport) -> dict:
         "output_token_throughput": report.output_token_throughput,
         "request_throughput": report.request_throughput,
         "error_rate": report.error_rate,
+        "output_tokens_mean": _blank_if_none(report.output_tokens_mean),
+        "requested_output_tokens_mean": _blank_if_none(report.requested_output_tokens_mean),
+        "output_length_mismatch_count": report.output_length_mismatch_count,
+        "output_length_mismatch_rate": report.output_length_mismatch_rate,
     }
 
     for prefix, stats in [
@@ -157,3 +181,7 @@ def _flatten_report(report: BenchmarkReport) -> dict:
                 flat[f"{prefix}_{field}"] = ""
 
     return flat
+
+
+def _blank_if_none(value: float | None) -> float | str:
+    return "" if value is None else value

@@ -107,6 +107,10 @@ async def send_request(
         # Ask the server to report token usage in a final chunk so we can
         # count real tokens instead of SSE chunks.
         payload["stream_options"] = {"include_usage": True}
+    if config.ignore_eos:
+        # vLLM / SGLang / TensorRT-LLM: generate exactly max_tokens tokens.
+        payload["ignore_eos"] = True
+        payload["min_tokens"] = max_tokens
 
     start = time.perf_counter()
     try:
@@ -123,9 +127,11 @@ async def send_request(
                 )
 
             if config.streaming:
-                return await _handle_streaming(resp, start)
+                result = await _handle_streaming(resp, start)
             else:
-                return await _handle_non_streaming(resp, start)
+                result = await _handle_non_streaming(resp, start)
+            result.requested_output_tokens = max_tokens
+            return result
 
     except TimeoutError:
         elapsed = (time.perf_counter() - start) * 1000

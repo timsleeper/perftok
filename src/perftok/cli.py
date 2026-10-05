@@ -71,6 +71,10 @@ Example:
     help="Use streaming SSE.",
 )
 @click.option(
+    "--ignore-eos", is_flag=True, default=False,
+    help="Force exactly max_tokens output (vLLM/SGLang/TensorRT-LLM).",
+)
+@click.option(
     "--random-seed", default=None, type=int,
     help="Seed for prompt and length sampling (reproducible workloads).",
 )
@@ -101,6 +105,7 @@ def main(
     stddev_output_tokens: int,
     timeout: int,
     streaming: bool,
+    ignore_eos: bool,
     random_seed: int | None,
     insecure: bool,
     output_format: str,
@@ -123,6 +128,7 @@ def main(
         stddev_output_tokens=stddev_output_tokens,
         timeout=timeout,
         streaming=streaming,
+        ignore_eos=ignore_eos,
         insecure=insecure,
         random_seed=random_seed,
     )

@@ -42,6 +42,10 @@ def sample_report(sample_stats):
         output_token_throughput=500.0,
         request_throughput=10.0,
         error_rate=5.0,
+        output_tokens_mean=120.0,
+        requested_output_tokens_mean=150.0,
+        output_length_mismatch_count=30,
+        output_length_mismatch_rate=31.6,
     )
 
 
@@ -68,6 +72,7 @@ class TestFormatCsv:
         assert "ttft_mean" in headers
         assert "icl_p99" in headers
         assert "output_throughput_per_user_p50" in headers
+        assert "output_length_mismatch_count" in headers
 
     def test_single_data_row(self, sample_report):
         output = format_csv(sample_report)
@@ -99,6 +104,13 @@ class TestFormatTable:
         assert "100" in output  # total requests
         assert "5.0" in output  # error rate
 
+    def test_output_length_row(self, sample_report):
+        output = format_table(sample_report)
+        assert "Output Tokens/req" in output
+        assert "120.0 / 150.0" in output
+        assert "Output Length Mismatches" in output
+        assert "30 (31.6%)" in output
+
 
 class TestConfigTable:
     def test_contains_parameters(self):
@@ -112,6 +124,28 @@ class TestConfigTable:
         assert "10" in output
         assert "100" in output
         assert "Configuration" in output
+
+
+class TestMismatchHint:
+    def _config(self, **kw) -> BenchmarkConfig:
+        return BenchmarkConfig(model="m", url="http://localhost:8000", **kw)
+
+    def test_hint_when_mismatches_and_ignore_eos_off(self, sample_report):
+        output = write_output(sample_report, format_name="table", config=self._config())
+        assert "--ignore-eos" in output
+
+    def test_no_hint_when_ignore_eos_on(self, sample_report):
+        output = write_output(
+            sample_report, format_name="table", config=self._config(ignore_eos=True)
+        )
+        assert "--ignore-eos" not in output
+
+    def test_no_hint_without_mismatches(self, sample_report):
+        report = sample_report.model_copy(
+            update={"output_length_mismatch_count": 0, "output_length_mismatch_rate": 0.0}
+        )
+        output = write_output(report, format_name="table", config=self._config())
+        assert "--ignore-eos" not in output
 
 
 class TestWriteOutput:
