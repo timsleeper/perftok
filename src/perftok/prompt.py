@@ -46,8 +46,8 @@ def generate_prompt(target_tokens: int) -> str:
     return text
 
 
-def generate_output_token_count(mean: int, stddev: int) -> int:
-    """Sample a positive output-token count from a normal distribution."""
+def sample_token_count(mean: int, stddev: int) -> int:
+    """Sample a positive token count from a normal distribution."""
     if stddev == 0:
         return max(1, mean)
     value = random.gauss(mean, stddev)

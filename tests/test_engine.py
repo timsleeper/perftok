@@ -49,7 +49,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -79,7 +79,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     await run_benchmark(config)
 
@@ -103,7 +103,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -122,7 +122,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     report = await run_benchmark(config)
 
@@ -143,7 +143,7 @@ class TestRunBenchmark:
         with patch("perftok.engine.send_request", side_effect=mock_send):
             with patch("perftok.engine.generate_prompt", return_value="test"):
                 with patch(
-                    "perftok.engine.generate_output_token_count", return_value=50
+                    "perftok.engine.sample_token_count", return_value=50
                 ):
                     await run_benchmark(config, on_progress=on_progress)
 
@@ -166,7 +166,7 @@ class TestRunBenchmark:
             patch("perftok.engine.send_request", side_effect=mock_send),
             patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "perftok.engine.generate_output_token_count", return_value=50
+                "perftok.engine.sample_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)
@@ -190,7 +190,7 @@ class TestRunBenchmark:
             patch("perftok.engine.send_request", side_effect=mock_send),
             patch("perftok.engine.generate_prompt", return_value="test"),
             patch(
-                "perftok.engine.generate_output_token_count", return_value=50
+                "perftok.engine.sample_token_count", return_value=50
             ),
         ):
             report = await run_benchmark(config)
@@ -245,3 +245,36 @@ class TestRealServer:
         assert report.ttft_stats.max < 150
         # 40 requests * ~20 ms / concurrency 5 = ~0.2 s ideal
         assert report.total_duration_s < 0.4
+
+
+class TestInputTokenSampling:
+    async def _targets(self, **config_overrides) -> list[int]:
+        """Run the engine and return the target token count passed to generate_prompt."""
+        targets: list[int] = []
+
+        def record(target_tokens: int) -> str:
+            targets.append(target_tokens)
+            return "test"
+
+        async def mock_send(session, config, prompt, max_tokens):
+            return _fake_result(0)
+
+        config = _make_config(num_requests=60, **config_overrides)
+        with (
+            patch("perftok.engine.send_request", side_effect=mock_send),
+            patch("perftok.engine.generate_prompt", side_effect=record),
+        ):
+            await run_benchmark(config)
+        return targets
+
+    async def test_input_tokens_vary_with_stddev(self):
+        targets = await self._targets(mean_input_tokens=500, stddev_input_tokens=100)
+
+        assert len(targets) == 60
+        assert min(targets) < 500 < max(targets)
+        assert min(targets) >= 1
+
+    async def test_input_tokens_fixed_when_stddev_zero(self):
+        targets = await self._targets(mean_input_tokens=500, stddev_input_tokens=0)
+
+        assert targets == [500] * 60

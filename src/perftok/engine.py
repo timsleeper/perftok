@@ -12,7 +12,7 @@ import click
 
 from perftok.client import check_ssl, send_request
 from perftok.models import BenchmarkConfig, BenchmarkReport, RequestResult
-from perftok.prompt import generate_output_token_count, generate_prompt
+from perftok.prompt import generate_prompt, sample_token_count
 from perftok.stats import compute_report
 
 if TYPE_CHECKING:
@@ -55,10 +55,10 @@ async def run_benchmark(
     # unread, inflating their TTFT and the total duration.
     jobs = [
         (
-            generate_prompt(config.mean_input_tokens),
-            generate_output_token_count(
-                config.mean_output_tokens, config.stddev_output_tokens
+            generate_prompt(
+                sample_token_count(config.mean_input_tokens, config.stddev_input_tokens)
             ),
+            sample_token_count(config.mean_output_tokens, config.stddev_output_tokens),
         )
         for _ in range(config.num_requests)
     ]

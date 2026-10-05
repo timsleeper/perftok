@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import tiktoken
 
-from perftok.prompt import generate_output_token_count, generate_prompt
+from perftok.prompt import generate_prompt, sample_token_count
 
 
 @pytest.fixture
@@ -53,16 +53,16 @@ class TestGeneratePrompt:
         assert len(prompt) > 0
 
 
-class TestGenerateOutputTokenCount:
+class TestSampleTokenCount:
     def test_mean_and_stddev(self):
-        counts = [generate_output_token_count(mean=100, stddev=0) for _ in range(10)]
+        counts = [sample_token_count(mean=100, stddev=0) for _ in range(10)]
         assert all(c == 100 for c in counts)
 
     def test_always_positive(self):
-        counts = [generate_output_token_count(mean=5, stddev=100) for _ in range(100)]
+        counts = [sample_token_count(mean=5, stddev=100) for _ in range(100)]
         assert all(c >= 1 for c in counts)
 
     def test_distribution_spread(self):
-        counts = [generate_output_token_count(mean=500, stddev=100) for _ in range(200)]
+        counts = [sample_token_count(mean=500, stddev=100) for _ in range(200)]
         assert min(counts) < 500
         assert max(counts) > 500
